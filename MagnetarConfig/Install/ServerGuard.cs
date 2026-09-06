@@ -74,14 +74,20 @@ internal static class ServerGuard
                 string? command = (string?)process["CommandLine"];
                 if (command is not null && command.Replace('/', '\\').Contains(target + Path.DirectorySeparatorChar, InstallFiles.Comparison)) Running(pid);
                 if (string.IsNullOrEmpty(exe) || string.IsNullOrEmpty(command)
-                    || (name.Equals("dotnet.exe", StringComparison.OrdinalIgnoreCase) && !HasAbsoluteAssembly(command)))
+                    || (name.Equals("dotnet.exe", StringComparison.OrdinalIgnoreCase) && HasRelativeAssembly(command)))
                     throw new InstallError($"Cannot verify whether process {pid} ({name}) uses this installation. Stop it before setup.");
             }
         }
         catch (ManagementException error) { throw new InstallError($"Cannot inspect running servers: {error.Message}"); }
     }
 
-    // Relative paths in a shared dotnet host cannot be resolved from WMI's data.
-    private static bool HasAbsoluteAssembly(string command) => System.Text.RegularExpressions.Regex.IsMatch(command,
-        @"(?:^|\s)(?:""[A-Za-z]:[\\/][^""]+\.dll""|[A-Za-z]:[\\/][^\s""]+\.dll)(?=\s|$)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    // WMI has no working directory. Refuse a relative hosted assembly, but ordinary
+    // SDK commands (dotnet test/build/etc.) are not running server assemblies.
+    internal static bool HasRelativeAssembly(string command)
+    {
+        var arguments = System.Text.RegularExpressions.Regex.Matches(command, "\"([^\"]*)\"|(\\S+)")
+            .Select(match => match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value);
+        string? assembly = arguments.Skip(1).FirstOrDefault(argument => argument.EndsWith(".dll", StringComparison.OrdinalIgnoreCase));
+        return assembly is not null && !System.Text.RegularExpressions.Regex.IsMatch(assembly, @"\A(?:[A-Za-z]:[\\/]|\\\\)");
+    }
 }

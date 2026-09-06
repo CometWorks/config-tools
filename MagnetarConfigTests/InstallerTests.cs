@@ -157,12 +157,21 @@ public sealed class InstallerTests : IDisposable
         Assert.Equal("first", File.ReadAllText(Path.Combine(options.Target, "MagnetarInterim.dll")));
     }
 
+    [Theory]
+    [InlineData("dotnet test Tests/Tests.csproj -c Release", false)]
+    [InlineData("dotnet exec C:\\server\\MagnetarInterim.dll", false)]
+    [InlineData("\"C:\\Program Files\\dotnet\\dotnet.exe\" \"C:\\server folder\\MagnetarInterim.dll\"", false)]
+    [InlineData("dotnet exec .\\MagnetarInterim.dll", true)]
+    [InlineData("dotnet MagnetarInterim.dll --argument C:\\other\\dependency.dll", true)]
+    public void Windows_process_check_distinguishes_sdk_commands_and_hosted_assemblies(string command, bool expected)
+        => Assert.Equal(expected, ServerGuard.HasRelativeAssembly(command));
+
     [Fact]
     public async Task Running_native_server_blocks_update()
     {
         await installer.Run("install");
         string source = OperatingSystem.IsWindows() ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "cmd.exe") : "/bin/sleep";
-        string executable = Path.Combine(options.Target, OperatingSystem.IsWindows() ? "MagnetarLegacy.exe" : "MagnetarInterim.bin");
+        string executable = Path.Combine(options.Target, OperatingSystem.IsWindows() ? "running-test.exe" : "MagnetarInterim.bin");
         File.Copy(source, executable, true);
         using var process = System.Diagnostics.Process.Start(new ProcessStartInfo(executable, OperatingSystem.IsWindows() ? "/c ping -n 30 127.0.0.1 > nul" : "30") { UseShellExecute = false })!;
         try { await Assert.ThrowsAsync<InstallError>(() => installer.Run("update")); }
