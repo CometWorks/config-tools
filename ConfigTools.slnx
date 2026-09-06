@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="MagnetarConfig/MagnetarConfig.csproj" />
+  <Project Path="MagnetarConfigTests/MagnetarConfigTests.csproj" />
+  <Project Path="PulsarConfig/PulsarConfig.csproj" />
+  <Project Path="PulsarConfigTests/PulsarConfigTests.csproj" />
+</Solution>
