@@ -78,6 +78,12 @@ internal sealed class Cli
         Console.WriteLine(@"MagnetarConfig — configure and operate a Magnetar-managed SE1 Dedicated Server.
 
 Usage: MagnetarConfig [options]
+       MagnetarConfig --setup [--target DIR] [--ds64 DIR]
+       MagnetarConfig install|update|uninstall [--target DIR] --yes
+       MagnetarConfig check [--ds64 DIR]
+
+  Setup also accepts --version TAG, --archive FILE and --sha256 HEX.
+  Setup manages Magnetar program files; game files and worlds are kept separately.
 
   -path <dir>      DS data directory (SpaceEngineers-Dedicated.cfg + Saves).
   -config <dir>    Magnetar config directory (config.xml, logs, magnetar.pid).
@@ -85,6 +91,9 @@ Usage: MagnetarConfig [options]
   -ds64 <dir>      DedicatedServer64 folder (for world templates).
   -netdriver       Force Terminal.Gui's NetDriver (portable fallback).
   -diag            Print a headless read-only instance report and exit.
+  --check-update  Check for a newer MagnetarConfig release.
+  --self-update   Update this tool executable (separate from Magnetar).
+  --tool-version  Print the installed tool version.
   -help, -h        Show this help.
 
 With no -path/-config the tool opens an interactive instance picker.");

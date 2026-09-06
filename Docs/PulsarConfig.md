@@ -11,7 +11,7 @@ Download `PulsarConfig-linux-x64.bin` from the
 [config-tools releases](https://github.com/CometWorks/config-tools/releases):
 
 ```sh
-curl -fLO https://github.com/CometWorks/config-tools/releases/latest/download/PulsarConfig-linux-x64.bin
+# Download PulsarConfig-linux-x64.bin from the latest pulsarconfig-v* release.
 chmod +x PulsarConfig-linux-x64.bin
 ./PulsarConfig-linux-x64.bin
 ```
@@ -78,13 +78,31 @@ without replacing it. Edits share the installer's operation lock and require
 Pulsar/the game to be closed, preventing a running loader from overwriting them.
 Removing sources unregisters them; source files and profile selections remain.
 
+## Tool updates and prerequisite checks
+
+**Tools → Tool updates** checks for newer `pulsarconfig-vX.Y.Z` releases and can
+update/restart this executable. `--check-update`, `--self-update`, and
+`--tool-version` provide the headless equivalents. Tool updates are separate
+from Pulsar package updates; see the [update and recovery details](../README.md#updating-the-tools).
+
+Setup's **Check prerequisites** button and `PulsarConfig check --game se1` report
+.NET 10, Steam/game discovery, Vulkan/Opus, display libraries and optional audio.
+Install, update and migration also run these checks before downloading. They are
+advisory: Steam containers can supply libraries absent on the host, and installation
+can precede runtime setup. File/path validation, writable staging, checksums and
+running-process checks remain mandatory. Uninstall does not require game runtimes.
+
+The check accepts either Wayland or X11 and respects an existing
+`SDL_VIDEODRIVER`; it does not choose a display backend or modify input settings.
+The bundled tool runtime does not satisfy Pulsar's separate .NET 10 requirement.
+
 ## Install, update, and uninstall
 
 The default location is `$XDG_DATA_HOME/Pulsar`, normally
 `~/.local/share/Pulsar`. A tool placed inside an installed Pulsar directory
 defaults to that installation instead. `PULSAR_DATA_DIR` or `--target` overrides it. Updates
 keep the chosen path, profiles, custom plugins, and other user files. Existing
-portable unified Pulsar installations can also be updated. Download a new config-tools release
+portable unified Pulsar installations can also be updated. Use **Tools → Tool updates** or `--self-update`
 to update the tool itself. Older unified
 packages published by linux-compat (for example 2.3.3) use Update.
 

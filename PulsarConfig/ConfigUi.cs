@@ -83,7 +83,19 @@ internal sealed class ConfigShell : Toplevel
                     ),
                     new MenuBarItem(
                         "_Tools",
-                        new[] { new MenuItem("_Theme…", "", TerminalTheme.Choose) }
+                        new[]
+                        {
+                            new MenuItem("_Theme…", "", TerminalTheme.Choose),
+                            new MenuItem(
+                                "Tool _updates…",
+                                "",
+                                () =>
+                                {
+                                    if (SelfUpdateUi.Show())
+                                        Application.RequestStop();
+                                }
+                            ),
+                        }
                     ),
                 }
             ),

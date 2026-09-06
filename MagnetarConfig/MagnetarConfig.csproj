@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <Product>Magnetar</Product>
+    <Version>1.0.0</Version>
     <Copyright>© 2025 SpaceGT</Copyright>
     <AssemblyTitle>MagnetarConfig</AssemblyTitle>
     <Description>Terminal UI configuration tool for a Magnetar-managed Space Engineers 1 Dedicated Server</Description>
@@ -52,9 +53,11 @@
     <!-- Terminal.Gui v1 (classic API). Pinned to the last v1 stable; v2 is a
          breaking beta. See Docs/MagnetarConfig.md §4.2. -->
     <PackageReference Include="Terminal.Gui" Version="1.19.0" />
+    <PackageReference Include="SharpCompress" Version="0.50.4" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../Common/*.cs" Link="Ui/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="../Licenses/SharpCompress.txt" Link="Install/SharpCompress-LICENSE.txt" />
     <InternalsVisibleTo Include="MagnetarConfigTests" />
   </ItemGroup>
 </Project>

@@ -4,74 +4,72 @@ on:
   pull_request:
   push:
     branches: [main]
-    tags: ['v*']
+    tags: ['pulsarconfig-v*', 'magnetarconfig-v*']
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  select:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    steps:
+      - id: select
+        shell: python {0}
+        run: |
+          import json, os, re
+          ref = os.environ['GITHUB_REF']
+          rows = [
+              {'tool': 'PulsarConfig', 'os': 'ubuntu-latest', 'rid': 'linux-x64'},
+              {'tool': 'MagnetarConfig', 'os': 'ubuntu-latest', 'rid': 'linux-x64'},
+              {'tool': 'MagnetarConfig', 'os': 'windows-latest', 'rid': 'win-x64'},
+          ]
+          if ref.startswith('refs/tags/'):
+              match = re.fullmatch(r'(pulsarconfig|magnetarconfig)-v(\d+\.\d+\.\d+)', os.environ['GITHUB_REF_NAME'])
+              if not match:
+                  raise SystemExit('Use pulsarconfig-vX.Y.Z or magnetarconfig-vX.Y.Z for stable releases')
+              rows = [row for row in rows if row['tool'].lower() == match[1]]
+              for row in rows:
+                  row['version'] = match[2]
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('matrix=' + json.dumps({'include': rows}) + '\n')
+
   build:
+    needs: select
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            rid: linux-x64
-          - os: windows-latest
-            rid: win-x64
+      matrix: ${{ fromJSON(needs.select.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-      - name: Test MagnetarConfig
-        run: dotnet test MagnetarConfigTests/MagnetarConfigTests.csproj -c Release
-      - name: Test PulsarConfig
-        if: runner.os == 'Linux'
-        run: dotnet test PulsarConfigTests/PulsarConfigTests.csproj -c Release
-      - name: Publish standalone executables
+      - name: Test tool
+        run: dotnet test ${{ matrix.tool }}Tests/${{ matrix.tool }}Tests.csproj -c Release
+      - name: Publish standalone executable and test self-replacement
         shell: pwsh
         env:
+          TOOL: ${{ matrix.tool }}
           RID: ${{ matrix.rid }}
+          RELEASE_VERSION: ${{ matrix.version }}
         run: |
-          $ErrorActionPreference = 'Stop'
-          New-Item -ItemType Directory -Force dist | Out-Null
-          $version = if ($env:GITHUB_REF -like 'refs/tags/v*') { $env:GITHUB_REF_NAME.Substring(1) } else { '1.0.0-dev' }
-          $tools = @('MagnetarConfig')
-          if ($IsLinux) { $tools += 'PulsarConfig' }
-          foreach ($tool in $tools) {
-            $output = Join-Path $PWD "publish/$tool"
-            dotnet publish "$tool/$tool.csproj" -c Release -r $env:RID --self-contained true -p:Version=$version -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -o $output
-            if ($LASTEXITCODE -ne 0) { throw "Publish failed: $tool" }
-            $files = @(Get-ChildItem $output -File -Recurse)
-            if ($files.Count -ne 1) { throw "Expected one executable for $tool, got $($files.Count) files" }
-            $extension = if ($IsWindows) { '.exe' } else { '.bin' }
-            $dest = Join-Path $PWD "dist/$tool-$env:RID$extension"
-            Copy-Item $files[0].FullName $dest
-            if ($IsLinux) { chmod +x $dest }
-            # Exercise the renamed bundled apphost outside its publish directory.
-            $previousRoot = $env:DOTNET_ROOT
-            $env:DOTNET_ROOT = Join-Path $PWD 'no-installed-runtime'
-            & $dest --help
-            if ($LASTEXITCODE -ne 0) { throw "Standalone startup failed: $tool" }
-            $env:DOTNET_ROOT = $previousRoot
+          $version = $env:RELEASE_VERSION
+          if (-not $version) {
+            $version = ([xml](Get-Content "$env:TOOL/$env:TOOL.csproj")).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+            $version += '-dev'
           }
-          # Include the exact redistributed runtime's license and third-party notices.
-          $runtime = Get-ChildItem "$HOME/.nuget/packages/microsoft.netcore.app.runtime.$env:RID" -Directory |
-            Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1
-          if (-not $runtime) { throw 'Runtime package notices not found' }
-          Copy-Item "$runtime/LICENSE.TXT" "dist/DotNet-LICENSE-$env:RID.txt"
-          Copy-Item "$runtime/THIRD-PARTY-NOTICES.TXT" "dist/DotNet-NOTICES-$env:RID.txt"
+          ./Scripts/publish.ps1 -Tool $env:TOOL -Rid $env:RID -Version $version
       - uses: actions/upload-artifact@v4
         with:
-          name: config-tools-${{ matrix.rid }}
+          name: config-tools-${{ matrix.tool }}-${{ matrix.rid }}
           path: dist/*
           if-no-files-found: error
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/')
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -90,7 +88,7 @@ jobs:
           chmod +x dist/*.bin
           cd dist
           sha256sum * > SHA256SUMS.txt
-      - name: Create tool release
+      - name: Create independent tool release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --generate-notes --title "Config tools $GITHUB_REF_NAME"
+        run: gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --generate-notes --title "$GITHUB_REF_NAME"

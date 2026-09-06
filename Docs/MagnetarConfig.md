@@ -443,3 +443,49 @@ fallback.
 For the full list of known limitations, design trade-offs and planned future
 work, see the
 [design and implementation notes](MagnetarConfigInternals.md#15-known-limitations-and-future-work).
+
+## Installing and updating Magnetar
+
+Open **File → Install / update / uninstall** from the existing tool, or start
+`MagnetarConfig --setup` before an instance exists. The muted/Turbo C preference
+also applies to setup. The standalone tool installs the server package from
+**CometWorks/magnetar** releases; it does not download the dedicated-server game.
+The managed `.7z` reader is bundled, so an external 7-Zip installation is unnecessary.
+
+Headless equivalents (use the `.exe` filename on Windows):
+
+```sh
+./MagnetarConfig-linux-x64.bin install --target "$HOME/Games/Magnetar" --yes
+./MagnetarConfig-linux-x64.bin update --target "$HOME/Games/Magnetar" --yes
+./MagnetarConfig-linux-x64.bin uninstall --target "$HOME/Games/Magnetar" --yes
+./MagnetarConfig-linux-x64.bin check --ds64 /path/to/DedicatedServer64
+```
+
+Use `--version v2.4.0.0` to select a server release, or `--archive FILE.7z`
+with `--sha256 HEX` for an offline package. Installation and update report runtime
+prerequisites before downloading: .NET 10, the dedicated server's game files,
+and .NET Framework 4.8 on Windows (also needed by Interim's plugin compiler).
+Checks are advisory so files can be installed before the runtime is ready.
+Uninstall has no game/runtime prerequisite. No display backend or audio/GPU
+libraries are required for dedicated-server package management.
+
+Setup validates release paths and checksums, stages changes beside the target,
+keeps a backup, and rolls back if the switch fails. It only removes/replaces
+server-owned launcher and library files. Instances, worlds, profiles, local
+plugins, unrelated files, and the separate configuration tool are retained.
+Servers using the target must be stopped. On Windows, run the standalone setup
+tool from outside the target because the running executable locks its directory.
+
+The older Linux `Bin`/shell-wrapper installation is not converted automatically.
+Install the current server in a new folder and keep selecting the existing
+`-config` and `-path` directories; do not run an old uninstall script over user data.
+
+## Updating MagnetarConfig itself
+
+Use **Tools → Tool updates** to check for a newer stable `magnetarconfig-vX.Y.Z`
+release and install/restart the tool. `--check-update`, `--self-update`, and
+`--tool-version` are available without opening the UI or selecting an instance.
+This is independent of the Magnetar server's release version and `update` action.
+Checks are explicit, and a PulsarConfig release does not affect update selection.
+See the [shared update and recovery guide](../README.md#updating-the-tools) for
+checksum verification, retained executables, and Windows helper behavior.

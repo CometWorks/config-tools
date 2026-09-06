@@ -38,7 +38,11 @@ internal sealed class Options
                 ++i < args.Length ? args[i] : throw new SetupError($"Missing value for {arg}.");
             switch (arg)
             {
-                case "install" or "update" or "migrate" or "uninstall" when options.Action is null:
+                case "install"
+                or "update"
+                or "migrate"
+                or "uninstall"
+                or "check" when options.Action is null:
                     options.Action = arg;
                     break;
                 case "--target":
@@ -90,13 +94,15 @@ internal static class Program
     {
         try
         {
+            if (await CometWorks.ConfigTools.SelfUpdate.Handle(args) is int updateResult)
+                return updateResult;
             var options = Options.Parse(args);
             if (options.Help)
             {
                 Console.WriteLine(
                     """
                     Pulsar configuration — omit the action to open the terminal UI.
-                    PulsarConfig [install|update|migrate|uninstall] [options]
+                    PulsarConfig [install|update|migrate|uninstall|check] [options]
 
                     --target DIR     Installation folder
                     --game GAME      auto (saved choice), se1 or se2
@@ -107,6 +113,9 @@ internal static class Program
                     --archive FILE   Use a local unified Linux .tar.gz
                     --sha256 HEX     Expected checksum for a local archive
                     --yes            Confirm an explicitly named CLI action
+                    --check-update   Check for a newer PulsarConfig release
+                    --self-update    Update this tool executable (separate from Pulsar)
+                    --tool-version   Print the installed tool version
                     --help           Show this help
                     """
                 );
@@ -116,6 +125,11 @@ internal static class Program
                 throw new SetupError("Pulsar setup currently supports native Linux x64 installs.");
             if (geteuid() == 0)
                 throw new SetupError("Run as your normal Steam user, without sudo.");
+            if (options.Action == "check")
+            {
+                Console.WriteLine(new Installer(options, Console.WriteLine).CheckPrerequisites());
+                return 0;
+            }
             if (options.Action is null)
             {
                 if (Console.IsInputRedirected || Console.IsOutputRedirected)

@@ -95,7 +95,10 @@ internal static class SetupUi
                         $"\n\nOld install: {options.Source ?? options.Target}\nOld settings: {options.Settings}";
                 if (action != "uninstall")
                     message += $"\n\nPackage: {options.Archive ?? options.Version}";
-                if (MessageBox.Query("Confirm setup", message, "Cancel", "Continue") != 1)
+                if (
+                    action != "check"
+                    && MessageBox.Query("Confirm setup", message, "Cancel", "Continue") != 1
+                )
                     return;
                 busy = true;
                 foreach (var control in controls)
@@ -107,11 +110,12 @@ internal static class SetupUi
                     await Task.Run(async () =>
                     {
                         void Report(string text) => Application.MainLoop.Invoke(() => Append(text));
-                        await new Installer(options, Report).Run(action, cancellation.Token);
+                        if (action == "check")
+                            Report(new Installer(options, Report).CheckPrerequisites());
+                        else
+                            await new Installer(options, Report).Run(action, cancellation.Token);
                     });
-                    Application.MainLoop.Invoke(() =>
-                        Append("Done. You can select and copy the launch options above.")
-                    );
+                    Application.MainLoop.Invoke(() => Append("Done."));
                 }
                 catch (OperationCanceledException)
                 {
@@ -146,6 +150,10 @@ internal static class SetupUi
                 controls.Add(button);
                 column += action.Length + 5;
             }
+            var check = new Button("Check prerequisites") { X = 1, Y = 12 };
+            check.Clicked += () => Start("check");
+            window.Add(check);
+            controls.Add(check);
             var cancel = new Button("Cancel task") { X = column, Y = 13 };
             cancel.Clicked += () => cancellation?.Cancel();
             window.Add(cancel);

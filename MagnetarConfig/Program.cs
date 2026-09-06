@@ -29,7 +29,46 @@ internal static class Program
             return File.Exists(path) ? Assembly.LoadFrom(path) : null;
         };
 
+        if (SelfUpdate.Handle(args).GetAwaiter().GetResult() is int updateResult) return updateResult;
+        if (args.Length > 0 && args[0] is "install" or "update" or "uninstall" or "check" or "--setup")
+            return RunSetup(args);
         return Run(args);
+    }
+
+    private static int RunSetup(string[] args)
+    {
+        try
+        {
+            if (System.Linq.Enumerable.Contains(args, "--help")) { Cli.PrintHelp(); return 0; }
+            bool tui = args[0] == "--setup";
+            var values = (string[])args.Clone();
+            if (tui) values[0] = "install";
+            var options = Install.InstallOptions.Parse(values);
+            if (tui)
+            {
+                if (Console.IsInputRedirected || Console.IsOutputRedirected)
+                    throw new InvalidOperationException("Setup needs a terminal. Use install/update/uninstall --yes for scripts.");
+                Application.UseSystemConsole = true;
+                try
+                {
+                    Application.Init();
+                    TerminalTheme.Apply(ThemePreference.Load(ThemePreference.FilePath, ThemeKind.Muted));
+                    Install.SetupUi.Run(options);
+                }
+                finally { Application.Shutdown(); }
+            }
+            else
+            {
+                if (options.Action != "check" && !options.Yes)
+                    throw new InvalidOperationException("Use --yes to confirm an installation action, or --setup for the TUI.");
+                using var cancellation = new System.Threading.CancellationTokenSource();
+                Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancellation.Cancel(); };
+                new Install.Installer(options, Console.WriteLine).Run(options.Action, cancellation.Token).GetAwaiter().GetResult();
+            }
+            return 0;
+        }
+        catch (OperationCanceledException) { Console.Error.WriteLine("Magnetar setup cancelled."); return 130; }
+        catch (Exception error) { Console.Error.WriteLine("Magnetar setup: " + error.Message); return 1; }
     }
 
     private static int Run(string[] args)

@@ -454,12 +454,14 @@ internal sealed class Installer
         }
     }
 
-    public async Task Run(string action, CancellationToken token = default)
+    internal string CheckPrerequisites()
     {
-        if (action is not ("install" or "update" or "migrate" or "uninstall"))
-            throw new SetupError("Unknown setup action.");
-        using var operationLock = Files.Lock(StateDir);
-        Validate(action);
+        ResolveGame();
+        return CometWorks.ConfigTools.Prerequisites.Pulsar(Game);
+    }
+
+    private void ResolveGame()
+    {
         if (Game == "auto")
         {
             using var receipt = JsonDocument.Parse(
@@ -471,6 +473,17 @@ internal sealed class Installer
         }
         if (Game is not ("se1" or "se2"))
             throw new SetupError("Unknown saved game selection; choose --game se1 or se2.");
+    }
+
+    public async Task Run(string action, CancellationToken token = default)
+    {
+        if (action is not ("install" or "update" or "migrate" or "uninstall"))
+            throw new SetupError("Unknown setup action.");
+        using var operationLock = Files.Lock(StateDir);
+        Validate(action);
+        ResolveGame();
+        if (action != "uninstall")
+            report(CometWorks.ConfigTools.Prerequisites.Pulsar(Game));
         string old =
             action == "migrate" && options.Source is not null
                 ? Files.InstallPath(options.Source)

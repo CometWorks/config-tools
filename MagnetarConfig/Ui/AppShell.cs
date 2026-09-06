@@ -81,6 +81,9 @@ internal sealed class AppShell : Toplevel
             new MenuBarItem("_File", new[]
             {
                 new MenuItem("_Open Instance…", "", ReopenInstance),
+                new MenuItem("_Install / update / uninstall…", "", () =>
+                    Install.SetupUi.Run(string.IsNullOrEmpty(binding.MagnetarExePath) ? null :
+                        System.IO.Path.GetDirectoryName(binding.MagnetarExePath), binding.Ds64Dir)),
                 new MenuItem("_Quit", "", () => RequestQuit()),
             }),
             new MenuBarItem("_Server", new[]
@@ -112,6 +115,16 @@ internal sealed class AppShell : Toplevel
                 new MenuItem("_Logs", "", ShowLogs),
                 new MenuItem("_Dashboard", "", ShowDashboard),
                 new MenuItem("_Theme…", "", TerminalTheme.Choose),
+                new MenuItem("Tool _updates…", "", () =>
+                {
+                    (content as IAutoSaveContent)?.FlushPendingSave();
+                    if (content is IAutoSaveContent auto && auto.InvalidFields.Count > 0)
+                    {
+                        Dialogs.Error("Tool update", "Correct the invalid fields before restarting the tool.");
+                        return;
+                    }
+                    if (SelfUpdateUi.Show()) Application.RequestStop();
+                }),
             }),
             new MenuBarItem("_Help", new[]
             {

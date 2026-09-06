@@ -15,8 +15,8 @@ driver; on Linux it uses ncurses/terminfo, with `-netdriver` as the managed fall
 | Tool | Release executable | Purpose |
 | --- | --- | --- |
 | PulsarConfig | `PulsarConfig-linux-x64.bin` | Configure plugins, sources, dev folders and profiles; launch, install, update or migrate Pulsar |
-| MagnetarConfig | `MagnetarConfig-linux-x64.bin` | Configure and operate one Magnetar server on Linux |
-| MagnetarConfig | `MagnetarConfig-win-x64.exe` | Configure and operate one Magnetar server on Windows |
+| MagnetarConfig | `MagnetarConfig-linux-x64.bin` | Install, update, configure and operate Magnetar on Linux |
+| MagnetarConfig | `MagnetarConfig-win-x64.exe` | Install, update, configure and operate Magnetar on Windows |
 
 On Linux, make the downloaded file executable and run it:
 
@@ -29,6 +29,34 @@ SHA-256 checksums and license notices accompany the executables. These bundles
 contain the **configuration tools**; Pulsar/Magnetar and the games keep their
 own runtime and platform prerequisites. Pulsar setup downloads game-launcher
 packages from **SpaceGT/Pulsar**, not from this repository.
+
+## Updating the tools
+
+Both tools provide **Tools → Tool updates** to check for a newer stable release
+and **Update and restart** to install it. Checks are explicit; opening the tool
+does not download or install updates automatically. For scripts:
+
+```sh
+./PulsarConfig-linux-x64.bin --check-update
+./PulsarConfig-linux-x64.bin --self-update
+./MagnetarConfig-linux-x64.bin --self-update
+# Windows: .\MagnetarConfig-win-x64.exe --self-update
+```
+
+`--tool-version` prints the installed version. These switches update the **tool**;
+`update --target ...` updates Pulsar or Magnetar. Release lookup filters each
+tool's tags, so a newer MagnetarConfig release cannot hide a PulsarConfig update.
+Choose the matching tool release on the releases page rather than using the
+repository-wide `releases/latest/download` URL.
+
+Updates require HTTPS access to GitHub and write access beside the executable.
+The helper verifies GitHub's SHA-256 digest and waits for this tool to exit before
+replacing it, including on Windows. Close other copies of the same tool first.
+The UI restarts with the same arguments; CLI updates exit without restarting.
+The previous executable remains as `<executable>.previous`; the result is written
+to `<executable>.update.log`. Restore the previous file with the tool closed if
+needed. No game/server files, launch arguments, profiles, or theme preferences
+are changed. Source/development builds must be rebuilt rather than self-updated.
 
 ## Appearance
 
@@ -58,8 +86,8 @@ profiles; it does not alter overlay or display-backend settings.
 
 ## Build and test
 
-Building from source requires the .NET 10 SDK. Each tool has one direct runtime
-NuGet dependency, Terminal.Gui 1.19.0; restore downloads build dependencies, and
+Building from source requires the .NET 10 SDK. Both tools use Terminal.Gui 1.19.0;
+MagnetarConfig also bundles SharpCompress to read upstream `.7z` packages; restore downloads build dependencies, and
 publishing bundles them for end users. Tests use xUnit.
 
 ```sh
@@ -80,9 +108,20 @@ dotnet publish MagnetarConfig/MagnetarConfig.csproj -c Release -r linux-x64 --se
 Native libraries are included in the bundle; trimming is disabled to preserve
 Terminal.Gui and XML serializer reflection. Runtime discovery uses
 `AppContext.BaseDirectory`, so renamed single-file executables work correctly.
-The release workflow tests on Linux/Windows, publishes the three executables,
-and creates a GitHub release when a `v*` tag is pushed. Main/PR builds upload
-artifacts without publishing a release.
+Each project has its own version and release tags. Push **`pulsarconfig-vX.Y.Z`**
+to release only PulsarConfig (Linux), or **`magnetarconfig-vX.Y.Z`** to release
+only MagnetarConfig (Linux and Windows). The tag supplies that executable's
+version; update its project's `<Version>` for subsequent source builds. The
+workflow tests and publishes only the selected tool. Main/PR builds test both
+and upload artifacts without publishing releases. Stable releases use three
+numeric version components; prereleases are excluded from self-update.
+
+For the same single-file checks and update-helper smoke test locally:
+
+```sh
+pwsh Scripts/publish.ps1 -Tool PulsarConfig -Rid linux-x64
+pwsh Scripts/publish.ps1 -Tool MagnetarConfig -Rid linux-x64
+```
 
 ## Magnetar integration
 
