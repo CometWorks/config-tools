@@ -7,14 +7,14 @@ internal static class SetupUi
 {
     public static void Run(Options options)
     {
-        using var top = new Toplevel();
+        using var top = new Dialog("Pulsar · Linux setup")
         {
-            var window = new Window("Pulsar · Linux setup")
-            {
-                Width = Dim.Fill(),
-                Height = Dim.Fill(1),
-            };
-            top.Add(window);
+            Width = Dim.Fill(),
+            Height = Dim.Fill(),
+            ColorScheme = TerminalTheme.Window,
+        };
+        {
+            var window = top;
             TextField Field(int row, string label, string value)
             {
                 window.Add(new Label(label) { X = 1, Y = row });
