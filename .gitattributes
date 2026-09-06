@@ -1,0 +1,2 @@
+# Keep protobuf hub fixtures byte-for-byte identical on Windows checkouts.
+*.bin binary
