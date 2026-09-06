@@ -41,8 +41,7 @@ tools for your user account on this machine and survives tool updates:
 - Windows: `%LOCALAPPDATA%\CometWorks\config-tools\theme`.
 
 It is separate from game/server profiles and portable installation folders.
-With no saved preference, Pulsar defaults to muted and Magnetar to its original
-Turbo Vision appearance. Other running tool windows pick up the choice on their
+With no saved preference, both tools default to muted. Other running tool windows pick up the choice on their
 next launch. Removing this file restores the defaults.
 
 ## Tool guides

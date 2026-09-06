@@ -933,8 +933,7 @@ and unsaved edits survive. Log highlights and desktop glyphs follow the theme.
 `Common/ThemePreference.cs` stores the shared selection atomically in the user's
 local config-tools settings (see [Appearance](../README.md#appearance)). It is
 independent of the per-instance `MagnetarConfig.xml` and portable install root.
-Missing, invalid, or unreadable preferences fall back to each tool's default:
-Turbo for Magnetar, Muted for Pulsar. Save errors are shown to the user.
+Missing, invalid, or unreadable preferences fall back to Muted in both tools. Save errors are shown to the user.
 
 ---
 

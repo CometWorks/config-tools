@@ -1,6 +1,6 @@
 # MagnetarConfig — user manual
 
-**MagnetarConfig** is a cross-platform terminal UI (Terminal.Gui, classic Turbo Vision theme by default) that configures **and operates** one Space Engineers 1 Dedicated
+**MagnetarConfig** is a cross-platform terminal UI (Terminal.Gui, muted theme by default) that configures **and operates** one Space Engineers 1 Dedicated
 Server instance running under Magnetar. From a single screen you edit the
 server's global config, each world's session settings and mod list, choose and
 create worlds, manage Magnetar plugins / sources / profiles, start and stop the
@@ -93,8 +93,7 @@ Use **Tools → Theme** to switch between the original **Turbo C** appearance an
 **Muted**. Changes apply immediately, including desktop and log colors; current
 views and edits remain in place. The choice is shared with PulsarConfig and
 saved in [machine-local user settings](../README.md#appearance), outside server
-instances and installation folders. With no saved preference, Magnetar retains
-its original theme.
+instances and installation folders. With no saved preference, Magnetar defaults to muted.
 
 Run it from the install folder, next to the launcher. The bundle is
 portable: the tool finds the launcher and the Magnetar config dir relative to

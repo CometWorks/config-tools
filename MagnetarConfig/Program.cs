@@ -72,7 +72,7 @@ internal static class Program
         try
         {
             Application.Init();
-            TerminalTheme.Apply(ThemePreference.Load(ThemePreference.FilePath, ThemeKind.Turbo));
+            TerminalTheme.Apply(ThemePreference.Load(ThemePreference.FilePath, ThemeKind.Muted));
 
             InstanceBinding binding = cli.ToBinding();
 
