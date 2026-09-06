@@ -388,10 +388,10 @@ MagnetarConfigTests/
 `Program.SetupGame`) and deletes it in the clean-shutdown path
 (`ServerControl.FlushAll`). Small, isolated, and useful on its own (ops scripts).
 
-Naming: assembly `MagnetarConfig`. Both the Windows and Linux bundles ship the
-net10.0 build (framework-dependent, requiring the .NET 10 runtime, same as
-`MagnetarInterim`). Follows `Legacy.csproj` conventions: `Platforms=x64`,
-`LangVersion=latest`, icon + long-path manifest on Windows.
+Naming: assembly `MagnetarConfig`. Config-tools releases ship independent
+self-contained net10.0 executables for Windows and Linux, with .NET included.
+The project uses `Platforms=x64`, `LangVersion=latest`, and the existing Windows
+icon. It has no build or deployment dependency on the Magnetar server.
 
 ### 4.2 Dependencies
 
@@ -1244,28 +1244,15 @@ Trimming is disabled because the UI and serializers use reflection. Each
 publish output contains one executable; runtime and third-party notices ship
 alongside release assets. Runtime paths use `AppContext.BaseDirectory`, so
 renaming the executable or copying it alone preserves adjacent-file discovery.
-Single-file publishing skips the split-layout Deploy target described below.
+`ConfigTools.slnx` carries both tools and their tests. Magnetar's solution and
+server release bundles no longer build or ship the configurator, and there is
+no deployment target in this project. Users download the standalone executable
+from config-tools releases. The tool can live beside the server launchers or
+use explicit `-magnetar`, `-config`, and `-path` arguments from another folder.
 
-- `ConfigTools.slnx` carries the `MagnetarConfig` + `MagnetarConfigTests` projects.
-  Magnetar also references these projects through its pinned `ConfigTools` submodule.
-- When `Magnetar` is set, the `MagnetarConfig` project's Deploy MSBuild target ships
-  `MagnetarConfig` in each bundle with the same layout the launchers use:
-  the apphost runs as `<install>/MagnetarConfig.bin` on Linux and
-  `<install>\MagnetarConfig.exe` on Windows (it requires the .NET 10
-  runtime, same as `MagnetarInterim`), with the
-  `.dll`/`.deps.json`/`.runtimeconfig.json` triplet beside it and the
-  Terminal.Gui/NStack/System.Management dependencies isolated under
-  `Libraries/MagnetarConfig/`, where an `AssemblyResolve` hook in
-  `Program.cs` (the counterpart of the launchers') loads them from. They
-  stay out of the launcher's and the game's assembly graph: each process
-  only resolves from its own `Libraries/` subfolder. The release workflow
-  verifies the apphost and the staged dependencies before packing.
-- Docs integration: `README.md` (documentation table + a "Configuration tool"
-  note), `Docs/Usage.md` ("Configuring the server (MagnetarConfig)" section) and
-  `Docs/Layout.md` (`MagnetarConfig/` + `MagnetarConfigTests/` rows) cover the
-  tool. (The machine-generated code handbook that once accompanied the old
-  source tree was removed with the Pulsar-based rebuild; this document and the
-  user manual are the reference for the MagnetarConfig trees.)
+The source, tests, manuals, and release workflow live together here. Magnetar's
+README and usage guide link to these releases/manuals; its old manual paths
+remain redirect pages.
 
 ---
 

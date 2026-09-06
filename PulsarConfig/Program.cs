@@ -6,6 +6,7 @@ internal sealed class Options
 {
     public string? Action,
         Source,
+        Config,
         Settings,
         Archive,
         Sha256;
@@ -42,6 +43,9 @@ internal sealed class Options
                     break;
                 case "--target":
                     options.Target = Value();
+                    break;
+                case "--config":
+                    options.Config = Value();
                     break;
                 case "--source":
                     options.Source = Value();
@@ -91,11 +95,12 @@ internal static class Program
             {
                 Console.WriteLine(
                     """
-                    Pulsar Linux setup — omit the action to open the terminal UI.
+                    Pulsar configuration — omit the action to open the terminal UI.
                     PulsarConfig [install|update|migrate|uninstall] [options]
 
                     --target DIR     Installation folder
                     --game GAME      auto (saved choice), se1 or se2
+                    --config DIR     Active configuration (default: TARGET/Legacy or Modern)
                     --source DIR     Old native installation (migration; default: target)
                     --settings DIR   Old configuration (default: XDG_CONFIG_HOME/Pulsar)
                     --version TAG    Pulsar release tag, or latest
@@ -117,7 +122,7 @@ internal static class Program
                     throw new SetupError(
                         "The TUI needs a terminal. Use an action with --yes for scripts."
                     );
-                SetupUi.Run(options);
+                ConfigUi.Run(options);
             }
             else
             {

@@ -81,7 +81,8 @@ architecture, data model, internal state machines, testing and packaging — see
 Standalone config-tools releases contain one executable for Linux x64 or
 Windows x64 with .NET and Terminal.Gui bundled. Download from
 [config-tools releases](https://github.com/CometWorks/config-tools/releases),
-make the Linux file executable (`chmod +x`), and run it. It needs no separate
+make the Linux file executable (`chmod +x`), and run it. Magnetar server bundles
+do not include this tool. It needs no separate
 .NET installation. Place it beside your Magnetar launcher for the existing
 defaults, or pass `-magnetar`, `-config`, and `-path` explicitly.
 

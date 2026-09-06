@@ -14,7 +14,7 @@ driver; on Linux it uses ncurses/terminfo, with `-netdriver` as the managed fall
 
 | Tool | Release executable | Purpose |
 | --- | --- | --- |
-| PulsarConfig | `PulsarConfig-linux-x64.bin` | Install, update, uninstall, or migrate native Pulsar; SE1 and SE2 selection |
+| PulsarConfig | `PulsarConfig-linux-x64.bin` | Configure plugins, sources, dev folders and profiles; launch, install, update or migrate Pulsar |
 | MagnetarConfig | `MagnetarConfig-linux-x64.bin` | Configure and operate one Magnetar server on Linux |
 | MagnetarConfig | `MagnetarConfig-win-x64.exe` | Configure and operate one Magnetar server on Windows |
 
@@ -46,7 +46,7 @@ next launch. Removing this file restores the defaults.
 
 ## Tool guides
 
-- [PulsarConfig setup guide](Docs/PulsarConfig.md): backups, Steam launch options,
+- [PulsarConfig guide](Docs/PulsarConfig.md): plugin/source/profile editing, Steam launch, backups, launch options,
   SE1/SE2 selection, migration from LinuxCompat 1.0.x, and offline archives.
 - [MagnetarConfig manual](Docs/MagnetarConfig.md): server/world settings, mods,
   plugins/profiles, lifecycle control, and logs.
@@ -86,22 +86,15 @@ artifacts without publishing a release.
 
 ## Magnetar integration
 
-Magnetar consumes this repository as its pinned `ConfigTools` submodule.
-Its solution references the same MagnetarConfig source and tests. Existing
-Magnetar bundles retain `MagnetarConfig.bin` / `MagnetarConfig.exe` at the install
-root with managed files and `Libraries/MagnetarConfig/` dependencies.
+MagnetarConfig is downloaded independently from this repository's releases.
+Magnetar's server build and bundles do not include or depend on the TUI.
+Place the executable beside a Magnetar launcher for adjacent-file discovery,
+or pass `-magnetar`, `-config`, and `-path` when keeping it elsewhere.
 
-Standalone builds/tests do not deploy into a live install. To stage the existing
-split layout explicitly:
-
-```sh
-dotnet build MagnetarConfig/MagnetarConfig.csproj -c Release -p:Magnetar=/path/to/stage
-```
-
-config-tools deliberately has no root `Directory.Build.props`: embedded
-projects inherit Magnetar's version/deployment settings, while standalone builds
-need no game assemblies or Magnetar checkout. Set `MAGNETAR_SHARED` to a staged
-`Pulsar.Shared.dll` to exercise optional serializer interoperability tests.
+Building and publishing config-tools never deploys into a live installation.
+No game assemblies or Magnetar checkout are required. Set `MAGNETAR_SHARED`
+for Magnetar tests or `PULSAR_SHARED` for Pulsar tests to an existing
+`Pulsar.Shared.dll` to exercise optional serializer interoperability checks.
 
 ## Origins
 

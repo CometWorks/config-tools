@@ -1,3 +1,4 @@
+#nullable disable
 using CometWorks.ConfigTools;
 using System;
 using System.Linq;

@@ -13,6 +13,11 @@
   <ItemGroup>
     <PackageReference Include="Terminal.Gui" Version="1.19.0" />
     <Compile Include="../Common/*.cs" Link="Ui/%(Filename)%(Extension)" />
+    <Compile Include="../MagnetarConfig/Model/HubCatalog.cs" Link="Shared/Model/HubCatalog.cs" />
+    <Compile Include="../MagnetarConfig/Model/ProtoReader.cs" Link="Shared/Model/ProtoReader.cs" />
+    <Compile Include="../MagnetarConfig/Model/PluginManifest.cs" Link="Shared/Model/PluginManifest.cs" />
+    <Compile Include="../MagnetarConfig/Ui/Dialogs.cs" Link="Shared/Ui/Dialogs.cs" />
+    <Compile Include="../MagnetarConfig/Ui/FileDialogs.cs" Link="Shared/Ui/FileDialogs.cs" />
     <InternalsVisibleTo Include="PulsarConfigTests" />
   </ItemGroup>
 </Project>

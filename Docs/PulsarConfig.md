@@ -1,7 +1,7 @@
 # PulsarConfig — Linux setup
 
-PulsarConfig is a .NET 10 / Terminal.Gui tool for installing and managing native
-Pulsar installations for Space Engineers 1 and 2. Release executables bundle
+PulsarConfig is a .NET 10 / Terminal.Gui tool for configuring, launching,
+installing, and managing native Pulsar for Space Engineers 1 and 2. Release executables bundle
 .NET and all managed dependencies: no Python or separate .NET install is needed
 to run setup. Steam, the chosen game, GPU drivers, and the .NET 10 runtime remain
 prerequisites for running Pulsar and the game; the tool's private runtime does
@@ -16,6 +16,24 @@ chmod +x PulsarConfig-linux-x64.bin
 ./PulsarConfig-linux-x64.bin
 ```
 
+The main screen shows the selected installation, game, configuration directory,
+and Steam launch options. Use **File → Open installation** to choose another
+installation or switch SE1/SE2. An optional config override supports `-home` and
+custom setups; point it at the directory Pulsar actually uses. The defaults are
+`<install>/Legacy` for SE1 and `<install>/Modern` for SE2. CLI equivalents:
+
+```sh
+./PulsarConfig-linux-x64.bin --target ~/Games/Pulsar --game se1
+./PulsarConfig-linux-x64.bin --target ~/Games/Pulsar --game se2 --config /path/to/Modern
+```
+
+**F5 Start game** asks Steam to launch the selected game with its existing launch
+options (`steam -applaunch 244850` for SE1, `1133870` for SE2). It preserves Steam's
+arguments, overlay, input configuration, and environment. The tool does not
+rewrite Steam settings; ensure the displayed installation matches the launch
+options already configured in Steam.
+
+**File → Setup / update / migrate** opens the installation form described below.
 Tab moves between fields and buttons; Enter activates the selected action.
 Installation sets the target folder; Release accepts `latest` or a tag such as
 `v2.4.1`; Game accepts `auto`, `se1`, or `se2`. Old install/settings are used for
@@ -29,6 +47,36 @@ the saved choice; a new installation defaults to SE1. Use `--game se2` to select
 SE2 directly. SE2 setup rejects packages missing the Modern launcher before
 replacing any existing installation. The tool is Linux-only; Pulsar itself
 also supports Windows through its Windows packages and installer.
+
+## Plugins, dev folders, sources, and profiles
+
+- **F3 Plugins** browses cached hub/plugin catalogs, local hub manifests, local
+  DLLs, and registered dev folders. Filter by name/ID/type; Space, Enter, or
+  Toggle changes the active profile. Enabling a plugin also enables its cached
+  dependencies. Missing dependencies are reported before writing. Remote
+  catalogs are refreshed by Pulsar on game launch.
+- **F6 Dev folders** adds a source by selecting its plugin manifest XML. Edit its
+  display name, folder, manifest filename, source Enabled flag, active-profile
+  selection, and Debug build flag. Unchecking Debug build selects Release.
+  The profile ID is the folder name, matching Pulsar; the manifest filename is
+  stored as `File` in `Sources/sources.xml`. Renaming the folder updates matching
+  dev IDs in saved profiles as well as Current.
+- **Plugins → Sources** adds/edits/removes remote hubs, individual plugin
+  repositories, local hubs, and Workshop sources. Remote entries expose branch,
+  manifest file (plugin repos), Enabled, and Trusted. Editing remote source
+  locations clears their cached hash/check time for Pulsar's next refresh.
+- **F4 Profiles** saves the active set under a new name, loads a preset into
+  Current, updates a preset, renames it, or deletes it. Version pins, debug
+  flags, mod selections, and unknown XML fields are preserved. `Current` is
+  reserved for the active profile. Loading/deleting/overwriting asks first.
+
+Edits use `Profiles/Current.xml` and `Sources/sources.xml` beneath the selected
+configuration directory. Existing files get a `.bak` copy before their first
+change in a session. Writes are atomic and retain file permissions; operations
+that touch multiple files roll back if a write fails. Malformed XML is reported
+without replacing it. Edits share the installer's operation lock and require
+Pulsar/the game to be closed, preventing a running loader from overwriting them.
+Removing sources unregisters them; source files and profile selections remain.
 
 ## Install, update, and uninstall
 

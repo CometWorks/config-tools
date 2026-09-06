@@ -7,18 +7,14 @@ internal static class SetupUi
 {
     public static void Run(Options options)
     {
-        // System.Console avoids an additional ncurses/terminfo runtime dependency.
-        Application.UseSystemConsole = true;
-        Application.Init();
-        try
+        using var top = new Toplevel();
         {
-            TerminalTheme.Apply(ThemePreference.Load(ThemePreference.FilePath, ThemeKind.Muted));
             var window = new Window("Pulsar · Linux setup")
             {
                 Width = Dim.Fill(),
                 Height = Dim.Fill(1),
             };
-            Application.Top.Add(window);
+            top.Add(window);
             TextField Field(int row, string label, string value)
             {
                 window.Add(new Label(label) { X = 1, Y = row });
@@ -153,24 +149,24 @@ internal static class SetupUi
             var cancel = new Button("Cancel task") { X = column, Y = 13 };
             cancel.Clicked += () => cancellation?.Cancel();
             window.Add(cancel);
-            var quit = new Button("Quit") { X = Pos.Right(cancel) + 1, Y = 13 };
+            var quit = new Button("Back") { X = Pos.Right(cancel) + 1, Y = 13 };
             quit.Clicked += () =>
             {
                 if (!busy)
                     Application.RequestStop();
             };
             window.Add(quit);
-            Application.Top.Closing += args =>
+            top.Closing += args =>
             {
                 if (busy)
                     args.Cancel = true;
             };
-            Application.Top.Add(
+            top.Add(
                 new StatusBar([
                     new StatusItem(Key.F2, "~F2~ Theme", TerminalTheme.Choose),
                     new StatusItem(
                         Key.CtrlMask | Key.Q,
-                        "~Ctrl+Q~ Quit",
+                        "~Ctrl+Q~ Back",
                         () =>
                         {
                             if (!busy)
@@ -182,11 +178,7 @@ internal static class SetupUi
             Append(
                 "Install or update from SpaceGT/Pulsar releases. Steam launch options will be shown here."
             );
-            Application.Run();
-        }
-        finally
-        {
-            Application.Shutdown();
+            Application.Run(top);
         }
     }
 }
