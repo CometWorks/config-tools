@@ -81,7 +81,7 @@ Removing sources unregisters them; source files and profile selections remain.
 ## Tool updates and prerequisite checks
 
 **Tools → Tool updates** checks for newer `pulsarconfig-vX.Y.Z` releases and can
-update/restart this executable. `--check-update`, `--self-update`, and
+update this executable after closing the tool. `--check-update`, `--self-update`, and
 `--tool-version` provide the headless equivalents. Tool updates are separate
 from Pulsar package updates; see the [update and recovery details](../README.md#updating-the-tools).
 

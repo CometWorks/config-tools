@@ -33,7 +33,7 @@ internal static class SelfUpdateUi
                 $"Installed: {SelfUpdate.VersionText}\nCheck for a newer stable {SelfUpdate.Tool} release. Only this tool's executable is updated.",
         };
         var check = new Button("Check") { IsDefault = true };
-        var update = new Button("Update and restart") { Enabled = false };
+        var update = new Button("Update and close") { Enabled = false };
         var close = new Button("Close");
         dialog.Add(message);
         dialog.AddButton(check);
@@ -64,7 +64,7 @@ internal static class SelfUpdateUi
             {
                 if (install)
                 {
-                    await SelfUpdate.Prepare(release!, restart: true, cancel.Token);
+                    await SelfUpdate.Prepare(release!, cancel.Token);
                     prepared = true;
                 }
                 else
@@ -79,7 +79,7 @@ internal static class SelfUpdateUi
                         message.Text =
                             release == null
                                 ? $"{SelfUpdate.Tool} {SelfUpdate.VersionText} is up to date."
-                                : $"Installed: {SelfUpdate.VersionText}\nAvailable: {release.Tag}\n\nUpdate verifies SHA-256, keeps the previous executable, and restarts this tool with the same arguments. Close other windows of this tool first.";
+                                : $"Installed: {SelfUpdate.VersionText}\nAvailable: {release.Tag}\n\nUpdate verifies SHA-256, keeps the previous executable, and closes this tool to replace it. Reopen it with your usual command after the update. Close other windows of this tool first.";
                         check.Enabled = true;
                         update.Enabled = release != null;
                     }

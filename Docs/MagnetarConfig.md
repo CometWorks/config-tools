@@ -483,7 +483,7 @@ Install the current server in a new folder and keep selecting the existing
 ## Updating MagnetarConfig itself
 
 Use **Tools → Tool updates** to check for a newer stable `magnetarconfig-vX.Y.Z`
-release and install/restart the tool. `--check-update`, `--self-update`, and
+release and update the tool after closing it. Reopen it with your usual command. `--check-update`, `--self-update`, and
 `--tool-version` are available without opening the UI or selecting an instance.
 This is independent of the Magnetar server's release version and `update` action.
 Checks are explicit, and a PulsarConfig release does not affect update selection.

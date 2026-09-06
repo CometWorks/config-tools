@@ -33,8 +33,7 @@ with tempfile.TemporaryDirectory(prefix='config-tools-update-test-') as director
         ], text=True, timeout=15).strip()))
         plan = {
             'Parent': parent.pid, 'Started': started, 'Target': str(target),
-            'Hash': '0' * 64 if corrupt else before, 'Arguments': [],
-            'WorkingDirectory': str(root), 'Restart': False,
+            'Hash': '0' * 64 if corrupt else before,
         }
         plan_path = work / 'plan.json'
         plan_path.write_text(json.dumps(plan))
@@ -44,12 +43,16 @@ with tempfile.TemporaryDirectory(prefix='config-tools-update-test-') as director
             for _ in range(100):
                 if (work / 'ready').exists():
                     break
-                assert process.poll() is None, 'Helper exited before it was ready'
+                if process.poll() is not None:
+                    output, error = process.communicate()
+                    raise AssertionError('Helper exited before it was ready: ' + output + error)
                 time.sleep(0.1)
             else:
                 raise AssertionError('Helper readiness timed out')
             time.sleep(0.2)
-            assert process.poll() is None, 'Helper must wait for the parent to exit'
+            if process.poll() is not None:
+                output, error = process.communicate()
+                raise AssertionError('Helper must wait for the parent to exit: ' + output + error)
             assert hashlib.sha256(target.read_bytes()).hexdigest() == before
             parent.terminate()
             parent.wait(timeout=10)

@@ -33,7 +33,7 @@ packages from **SpaceGT/Pulsar**, not from this repository.
 ## Updating the tools
 
 Both tools provide **Tools → Tool updates** to check for a newer stable release
-and **Update and restart** to install it. Checks are explicit; opening the tool
+and **Update and close** to install it. Checks are explicit; opening the tool
 does not download or install updates automatically. For scripts:
 
 ```sh
@@ -52,7 +52,8 @@ repository-wide `releases/latest/download` URL.
 Updates require HTTPS access to GitHub and write access beside the executable.
 The helper verifies GitHub's SHA-256 digest and waits for this tool to exit before
 replacing it, including on Windows. Close other copies of the same tool first.
-The UI restarts with the same arguments; CLI updates exit without restarting.
+Both UI and CLI updates close the tool after staging. Reopen it with your usual
+command after the helper finishes; it does not start another TUI in the background.
 The previous executable remains as `<executable>.previous`; the result is written
 to `<executable>.update.log`. Restore the previous file with the tool closed if
 needed. No game/server files, launch arguments, profiles, or theme preferences

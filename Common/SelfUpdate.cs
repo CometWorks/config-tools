@@ -184,15 +184,7 @@ internal static class SelfUpdate
             );
     }
 
-    internal sealed record UpdatePlan(
-        int Parent,
-        long Started,
-        string Target,
-        string Hash,
-        string[] Arguments,
-        string WorkingDirectory,
-        bool Restart
-    );
+    internal sealed record UpdatePlan(int Parent, long Started, string Target, string Hash);
 
     // Linux Process.StartTime derives a wall clock from uptime separately in each process.
     // /proc start ticks are stable across parent/helper and also prevent PID reuse races.
@@ -204,11 +196,7 @@ internal static class SelfUpdate
             )
             : process.StartTime.ToUniversalTime().Ticks;
 
-    public static async Task Prepare(
-        ToolRelease release,
-        bool restart,
-        CancellationToken token = default
-    )
+    public static async Task Prepare(ToolRelease release, CancellationToken token = default)
     {
         // Framework-dependent development builds must be updated through source/build, not replace dotnet itself.
         if (!string.IsNullOrEmpty(typeof(SelfUpdate).Assembly.Location))
@@ -218,7 +206,7 @@ internal static class SelfUpdate
         string target =
             Environment.ProcessPath
             ?? throw new IOException("Cannot determine this tool's executable path.");
-        target = new FileInfo(target).ResolveLinkTarget(true)?.FullName ?? target;
+        target = Path.GetFullPath(new FileInfo(target).ResolveLinkTarget(true)?.FullName ?? target);
         string work = Path.Combine(
             Path.GetDirectoryName(target)!,
             "." + Path.GetFileName(target) + "-update-" + Guid.NewGuid().ToString("N")
@@ -242,15 +230,7 @@ internal static class SelfUpdate
             );
             File.Copy(package, helper);
             using var parent = Process.GetCurrentProcess();
-            var plan = new UpdatePlan(
-                parent.Id,
-                StartStamp(parent),
-                target,
-                release.Sha256,
-                Environment.GetCommandLineArgs().Skip(1).ToArray(),
-                Environment.CurrentDirectory,
-                restart
-            );
+            var plan = new UpdatePlan(parent.Id, StartStamp(parent), target, release.Sha256);
             string planPath = Path.Combine(work, "plan.json");
             File.WriteAllText(planPath, JsonSerializer.Serialize(plan));
             token.ThrowIfCancellationRequested();
@@ -308,20 +288,40 @@ internal static class SelfUpdate
             plan =
                 JsonSerializer.Deserialize<UpdatePlan>(File.ReadAllText(planPath))
                 ?? throw new IOException("Invalid update plan.");
+            // GetFullPath also expands Windows short names (e.g. RUNNER~1). Normalize
+            // every operand so the helper accepts the same file through either spelling.
+            plan = plan with
+            {
+                Target = Path.GetFullPath(plan.Target),
+            };
+            var comparison = OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
             if (
-                Path.GetDirectoryName(work) != Path.GetDirectoryName(plan.Target)
+                !string.Equals(
+                    Path.GetDirectoryName(work),
+                    Path.GetDirectoryName(plan.Target),
+                    comparison
+                )
                 || !Path.GetFileName(work)
                     .StartsWith(
                         "." + Path.GetFileName(plan.Target) + "-update-",
                         StringComparison.Ordinal
                     )
             )
-                throw new IOException("Invalid update staging directory.");
+                throw new IOException(
+                    $"Invalid update staging directory: {work} (target: {plan.Target})."
+                );
             if (
-                Path.GetDirectoryName(Environment.ProcessPath) != work
-                || !File.Exists(Path.Combine(work, "download"))
+                !string.Equals(
+                    Path.GetDirectoryName(Path.GetFullPath(Environment.ProcessPath!)),
+                    work,
+                    comparison
+                ) || !File.Exists(Path.Combine(work, "download"))
             )
-                throw new IOException("Update helper must run from its staging directory.");
+                throw new IOException(
+                    $"Update helper must run from its staging directory: {Environment.ProcessPath} (staging: {work})."
+                );
             validated = true;
             File.WriteAllText(Path.Combine(work, "ready"), "ready");
             try
@@ -359,21 +359,6 @@ internal static class SelfUpdate
                         + plan.Target
                         + ".previous\n"
                 );
-            }
-            if (plan.Restart)
-            {
-                var start = new ProcessStartInfo(plan.Target)
-                {
-                    UseShellExecute = false,
-                    WorkingDirectory = plan.WorkingDirectory,
-                };
-                foreach (string arg in plan.Arguments)
-                    start.ArgumentList.Add(arg);
-                using var child =
-                    Process.Start(start)
-                    ?? throw new IOException(
-                        "Updated successfully, but restart failed. Start the tool again manually."
-                    );
             }
             return 0;
         }
@@ -484,7 +469,7 @@ internal static class SelfUpdate
             );
             if (release != null && args[0] == "--self-update")
             {
-                await Prepare(release, restart: false);
+                await Prepare(release);
                 Console.WriteLine(
                     "Verified update staged. The helper will replace this executable after exit; see the adjacent .update.log for the result."
                 );
