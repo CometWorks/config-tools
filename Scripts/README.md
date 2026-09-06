@@ -3,7 +3,7 @@
 `pulsar-linux.py` is a single executable Python 3.10+ script. It uses Python's
 standard library, including curses for a terminal UI with muted slate colors.
 There is no pip installation, UI toolkit download, or sudo step. Linux x64 is
-supported; Steam, Space Engineers, GPU drivers, and the .NET 10 runtime are
+supported for **Space Engineers 1 and 2**; Steam, the chosen game, GPU drivers, and the .NET 10 runtime are
 prerequisites for running the game. Setup reports a missing runtime without
 installing system packages.
 
@@ -16,9 +16,17 @@ python3 pulsar-linux.py
 ```
 
 Use the arrow keys and Enter to select an action. Location changes the target
-folder; Release selects `latest` or a tag such as `v2.4.0`. Migration also asks
+folder; Release selects `latest` or a tag such as `v2.4.0`. **Game** cycles between
+the saved/default choice, SE1 (`Interim.bin`), and SE2 (`Modern.bin`). Migration also asks
 for the old binary and settings folders. The UI confirms the operation before
 changing files. Run without sudo, as the user who runs Steam.
+
+The unified package supplies both launchers. Game selection chooses the menu
+shortcut and displayed Steam command, not a different package. Updates preserve
+the saved choice; a new installation defaults to SE1. Use `--game se2` to select
+SE2 directly. SE2 setup rejects packages missing the Modern launcher before
+replacing any existing installation. The script is Linux-only; Pulsar itself
+also supports Windows through its Windows packages and installer.
 
 ## Install, update, and uninstall
 
@@ -45,29 +53,42 @@ Keep enough disk space for the current installation, staging copy, and backups.
 Remove backups yourself after verifying the new installation to reclaim space.
 
 Uninstall removes the package-owned launcher files and `Libraries`, plus this
-installation's menu shortcut. It **keeps** profiles, local plugins, other user
+installation's menu shortcut. This removes **both game launchers**, not only the
+selected game. It **keeps** profiles, local plugins, other user
 files, and the backup. Space Engineers files and saves are never removed.
-After uninstalling, remove the Pulsar executable and `%command%` from Steam's
-launch options, keeping any game arguments, so Steam can launch the game directly.
+After uninstalling, remove the Pulsar executable and `%command%` from both games'
+Steam launch options if configured, keeping any game arguments.
 
 ## Steam launch options
 
-Setup displays the exact launch option to paste into Space Engineers' Steam
-properties, for example:
+Setup displays the exact launch option for the selected game. In Steam, open
+that game's **Properties → General → Launch Options**. For SE1:
 
 ```text
-/home/yourname/.local/share/Pulsar/Interim.bin %command%
+/path/to/your/Interim.bin %command%
 ```
+
+For SE2:
+
+```text
+/path/to/your/Modern.bin %command%
+```
+
+Replace `/path/to/your/` with your Pulsar installation folder and keep
+`%command%` unchanged. You can configure both games against the same installation.
 
 Keep extra arguments, such as `-nosplash -noprompt`, after `%command%`. Paths
 containing spaces are quoted. The script does not rewrite Steam's configuration
-while Steam is running. The installed menu shortcut launches app 244850 through
-Steam and therefore requires this launch option to be configured first.
+while Steam is running. The installed menu shortcut launches the selected game
+through Steam (SE1: 244850; SE2: 1133870), so configure its launch option first.
 
 Setup does not add a launch wrapper, set overlay variables, or force X11/Wayland.
 The normal unified Pulsar and Steam launch paths remain responsible for those.
 
 ## Migrate LinuxCompat 1.0.x
+
+This migrates the old **SE1** layout and profiles; it is not an SE2 profile
+converter. The resulting unified installation also supports SE2.
 
 For the native 1.0.16 release, the old defaults are:
 
@@ -103,11 +124,16 @@ An explicit action with `--yes` uses the same implementation without curses:
 
 ```sh
 python3 pulsar-linux.py install --target "$HOME/Games/Pulsar" --yes
+python3 pulsar-linux.py install --game se2 --target "$HOME/Games/Pulsar" --yes
 python3 pulsar-linux.py update --target "$HOME/Games/Pulsar" --version v2.4.0 --yes
 python3 pulsar-linux.py migrate --target "$HOME/.local/share/Pulsar" \
     --settings "$HOME/.config/Pulsar" --yes
 python3 pulsar-linux.py uninstall --target "$HOME/Games/Pulsar" --yes
 ```
+
+Choose one install command for a new installation. To switch an existing
+installation's shortcut to SE2, use `update --game se2`; this also updates the
+shared package. Omitting `--game` preserves the saved choice.
 
 `--archive /path/to/pulsar-v2.4.0-linux-x64.tar.gz` uses a local release archive.
 Supply `--sha256 HEX_DIGEST` to verify it; otherwise a local archive is treated

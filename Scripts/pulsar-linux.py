@@ -34,6 +34,16 @@ REQUIRED = (
     "Interim.runtimeconfig.json",
     "Libraries/Interim/Pulsar.Shared.dll",
 )
+SE2_REQUIRED = (
+    "Modern.bin",
+    "Modern.dll",
+    "Modern.runtimeconfig.json",
+    "Libraries/Modern/Pulsar.Shared.dll",
+)
+GAMES = {
+    "se1": ("Space Engineers 1", "Interim.bin", "244850"),
+    "se2": ("Space Engineers 2", "Modern.bin", "1133870"),
+}
 
 
 class SetupError(Exception):
@@ -312,9 +322,12 @@ def migrate_settings(root, report):
 
 
 class Installer:
-    def __init__(self, target, report=print):
+    def __init__(self, target, report=print, game="auto"):
         self.target = install_path(target)
         self.report = report
+        if game not in ("auto", *GAMES):
+            raise SetupError("Choose se1 or se2 for the shortcut and launch options.")
+        self.game = game
         key = hashlib.sha256(os.fsencode(self.target)).hexdigest()[:20]
         self.state_dir = xdg("XDG_STATE_HOME", ".local/state") / "pulsar-installer"
         self.receipt = self.state_dir / (key + ".json")
@@ -333,13 +346,15 @@ class Installer:
             yield
 
     def launch_options(self):
-        return shlex.quote(str(self.target / "Interim.bin")) + " %command%"
+        executable = GAMES[self.game if self.game != "auto" else "se1"][1]
+        return shlex.quote(str(self.target / executable)) + " %command%"
 
     def desktop_contents(self):
         # Use Steam's launch path so it supplies the game's overlay/input environment.
+        name, _, app_id = GAMES[self.game if self.game != "auto" else "se1"]
         return (
-            "[Desktop Entry]\nType=Application\nName=Pulsar\n"
-            "Comment=Space Engineers with Pulsar\nExec=steam -applaunch 244850\n"
+            f"[Desktop Entry]\nType=Application\nName=Pulsar — {name}\n"
+            f"Comment={name} with Pulsar\nExec=steam -applaunch {app_id}\n"
             "Icon=applications-games\nTerminal=false\nCategories=Game;\n"
             f"X-Pulsar-Install-Path={self.target}\n"
         ).encode()
@@ -449,6 +464,17 @@ class Installer:
     ):
         with self.lock():
             self.validate_target(action)
+            if self.game == "auto":
+                previous = (
+                    json.loads(self.receipt.read_text())
+                    if self.receipt.exists()
+                    else {}
+                )
+                self.game = previous.get("game", "se1")
+                if self.game not in GAMES:
+                    raise SetupError(
+                        "Unknown saved game selection; choose --game se1 or se2."
+                    )
             old = (
                 install_path(source) if action == "migrate" and source else self.target
             )
@@ -490,6 +516,12 @@ class Installer:
                         version, sha256 = release_archive(version, archive, self.report)
                     self.report("Verifying and unpacking the Linux release…")
                     checksum = unpack(archive, package, sha256)
+                    if self.game == "se2" and not all(
+                        (package / name).is_file() for name in SE2_REQUIRED
+                    ):
+                        raise SetupError(
+                            "This package is missing the Space Engineers 2 Modern launcher files."
+                        )
                 stage = work / "install"
                 self.report(
                     "Preparing installation; your current files remain in place…"
@@ -517,6 +549,7 @@ class Installer:
                 state = {
                     "target": str(self.target),
                     "installed": action != "uninstall",
+                    "game": self.game,
                     "version": version if action != "uninstall" else None,
                 }
                 if action != "uninstall":
@@ -534,11 +567,13 @@ class Installer:
                         f"Program files removed. Settings and other files remain in {self.target}"
                     )
                     self.report(
-                        "Remove this Pulsar executable and %command% from Steam launch options; keep your game arguments."
+                        "Remove Pulsar launch options from both games if configured; keep your game arguments."
                     )
                 else:
                     self.report(f"Pulsar installed in {self.target}")
-                    self.report("Set Space Engineers launch options in Steam to:")
+                    self.report(
+                        f"Set {GAMES[self.game][0]} launch options in Steam to:"
+                    )
                     self.report(self.launch_options())
                     self.report(
                         "Keep any extra game/Pulsar arguments after %command%. The menu shortcut starts Steam."
@@ -588,7 +623,12 @@ class Tui:
         self.screen.erase()
         self.text(1, 3, "P U L S A R", self.accent | self.c.A_BOLD)
         self.text(2, 3, subtitle, self.muted)
-        self.text(4, 3, "Linux setup  /  Space Engineers", self.c.A_BOLD)
+        game = (
+            GAMES[self.options.game][0]
+            if self.options.game != "auto"
+            else "Saved game / SE1 for new installs"
+        )
+        self.text(4, 3, f"Linux setup  /  {game}", self.c.A_BOLD)
         self.text(5, 3, str(self.options.target), self.muted)
 
     def report(self, message):
@@ -661,14 +701,20 @@ class Tui:
             ("Uninstall", "Remove program files, keep your settings", "uninstall"),
             ("Location", "Choose the installation folder", "location"),
             ("Release", "Latest stable or a specific release tag", "release"),
+            (
+                "Game",
+                "Cycle saved/default, Space Engineers 1, Space Engineers 2",
+                "game",
+            ),
             ("Exit", "", "exit"),
         ]
         selected = 0
         while True:
             self.frame("Install · Update · Transfer")
+            spacing = 2 if self.screen.getmaxyx()[0] >= 26 else 1
             for n, (name, description, _) in enumerate(items):
                 self.text(
-                    8 + n * 2,
+                    8 + n * spacing,
                     3,
                     f" {'›' if n == selected else ' '} {name:12} {description}",
                     self.selected if n == selected else 0,
@@ -700,6 +746,12 @@ class Tui:
                     self.options.version = self.input(
                         "Release tag", self.options.version
                     )
+                    continue
+                if action == "game":
+                    choices = ("auto", "se1", "se2")
+                    self.options.game = choices[
+                        (choices.index(self.options.game) + 1) % len(choices)
+                    ]
                     continue
                 if action == "migrate":
                     self.options.source = self.input(
@@ -745,7 +797,7 @@ def perform(options, action, report):
             report(
                 "Install the .NET 10 runtime before launching Pulsar; setup does not change system packages."
             )
-    Installer(options.target, report).run(
+    Installer(options.target, report, options.game).run(
         action,
         options.version,
         options.archive,
@@ -767,6 +819,12 @@ def main():
     default_target = script_dir if modern(script_dir) else data_home() / "Pulsar"
     parser.add_argument(
         "--target", default=os.environ.get("PULSAR_DATA_DIR", str(default_target))
+    )
+    parser.add_argument(
+        "--game",
+        choices=("auto", "se1", "se2"),
+        default="auto",
+        help="Steam shortcut/launch command: se1 uses Interim.bin, se2 uses Modern.bin; auto preserves the saved choice (new install: se1)",
     )
     parser.add_argument(
         "--source", help="old native binary folder for migration (default: target)"

@@ -3,6 +3,7 @@
 import hashlib
 import importlib.util
 import io
+import json
 import os
 import shutil
 import subprocess
@@ -19,8 +20,10 @@ setup = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(setup)
 
 
-def package(path, revision=b"first", extra=None):
+def package(path, revision=b"first", extra=None, se2=True):
     files = {name: revision for name in setup.REQUIRED}
+    if se2:
+        files.update({name: revision for name in setup.SE2_REQUIRED})
     files.update(extra or {})
     with tarfile.open(path, "w:gz") as archive:
         for name, data in files.items():
@@ -93,6 +96,63 @@ class InstallerTests(unittest.TestCase):
             with self.assertRaises(OSError):
                 self.installer.run("update")
         self.assertEqual((self.target / "Interim.bin").read_bytes(), b"first")
+
+    def test_se2_install_update_uninstall_and_remembered_game(self):
+        installer = setup.Installer(self.target, self.log.append, game="se2")
+        installer.run("install", archive=self.archive)
+        self.assertIn("Modern.bin", installer.launch_options())
+        self.assertIn("-applaunch 1133870", installer.desktop.read_text())
+        self.assertEqual(json.loads(installer.receipt.read_text())["game"], "se2")
+        profile = self.target / "Modern/Profiles/Current.xml"
+        profile.parent.mkdir(parents=True)
+        profile.write_text("SE2 profile")
+        newer = package(self.home / "new.tar.gz", b"second")
+        updated = setup.Installer(self.target, self.log.append)
+        updated.run("update", archive=newer)
+        self.assertEqual(updated.game, "se2")
+        self.assertIn("-applaunch 1133870", updated.desktop.read_text())
+        self.assertEqual((self.target / "Modern.bin").read_bytes(), b"second")
+        self.assertEqual((self.target / "Interim.bin").read_bytes(), b"second")
+        updated.run("uninstall")
+        self.assertFalse((self.target / "Modern.bin").exists())
+        self.assertFalse((self.target / "Interim.bin").exists())
+        self.assertFalse(updated.desktop.exists())
+        self.assertEqual(profile.read_text(), "SE2 profile")
+
+    def test_se2_missing_launcher_does_not_replace_install(self):
+        installer = setup.Installer(self.target, self.log.append, game="se2")
+        installer.run("install", archive=self.archive)
+        before = installer.receipt.read_bytes(), installer.desktop.read_bytes()
+        incomplete = package(self.home / "se1-only.tar.gz", b"broken", se2=False)
+        with self.assertRaisesRegex(setup.SetupError, "Modern launcher"):
+            installer.run("update", archive=incomplete)
+        self.assertEqual((self.target / "Modern.bin").read_bytes(), b"first")
+        self.assertEqual(
+            (installer.receipt.read_bytes(), installer.desktop.read_bytes()), before
+        )
+
+    def test_cli_se2_selects_modern_launcher(self):
+        result = subprocess.run(
+            [
+                "python3",
+                str(SCRIPT),
+                "install",
+                "--game",
+                "se2",
+                "--target",
+                str(self.target),
+                "--archive",
+                str(self.archive),
+                "--yes",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("Modern.bin", result.stdout)
+        self.assertIn("Set Space Engineers 2 launch options", result.stdout)
+        self.assertIn("-applaunch 1133870", self.installer.desktop.read_text())
 
     def test_checksum_and_malicious_archive_fail_before_changes(self):
         self.install()
