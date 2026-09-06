@@ -4,7 +4,7 @@ using Terminal.Gui;
 namespace Magnetar.Config.Ui;
 
 /// <summary>
-/// A quiet, blank desktop behind the content windows.
+/// The selected theme's desktop behind the content windows.
 /// </summary>
 internal sealed class DesktopBackground : View
 {
@@ -25,7 +25,7 @@ internal sealed class DesktopBackground : View
         {
             Move(0, y);
             for (int x = 0; x < Bounds.Width; x++)
-                Driver.AddRune(' ');
+                Driver.AddRune(TerminalTheme.DesktopGlyph);
         }
     }
 }

@@ -64,8 +64,10 @@ public class UiSmokeTests : IDisposable
         }
     }
 
-    [Fact]
-    public void Log_viewer_renders_highlight_colours_into_the_cell_buffer()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Log_viewer_renders_highlight_colours_into_the_cell_buffer(bool turbo)
     {
         SeedGameLog();
         WithLogViewer((shell, driver) =>
@@ -75,13 +77,38 @@ public class UiSmokeTests : IDisposable
             // widget in this view uses them — so their presence in the cell buffer
             // proves the per-line colour overrides actually reached the screen. (The
             // production view builds the same attributes the same way.)
-            int readyAttr = Terminal.Gui.Attribute.Make(Color.BrightGreen, Color.DarkGray).Value;
-            int exceptionAttr = Terminal.Gui.Attribute.Make(Color.BrightRed, Color.DarkGray).Value;
+            int readyAttr = (turbo ? Terminal.Gui.Attribute.Make(Color.Black, Color.Green)
+                : Terminal.Gui.Attribute.Make(Color.BrightGreen, Color.DarkGray)).Value;
+            int exceptionAttr = (turbo ? Terminal.Gui.Attribute.Make(Color.BrightYellow, Color.Red)
+                : Terminal.Gui.Attribute.Make(Color.BrightRed, Color.DarkGray)).Value;
 
             Assert.True(BufferHasAttribute(driver, readyAttr),
                 "The 'Game ready' line was not rendered with its highlight colour.");
             Assert.True(BufferHasAttribute(driver, exceptionAttr),
                 "The 'Exception' line was not rendered with its highlight colour.");
+        }, turbo ? ThemeKind.Turbo : ThemeKind.Muted);
+    }
+
+    [Fact]
+    public void Theme_switch_preserves_views_and_updates_log_highlights()
+    {
+        SeedGameLog();
+        WithLogViewer((shell, driver) =>
+        {
+            TextView text = GetLogPane(shell);
+            text.Text = "unsaved view state";
+            var scheme = text.ColorScheme;
+            TerminalTheme.Apply(ThemeKind.Turbo);
+            Assert.Same(scheme, text.ColorScheme);
+            Assert.Equal("unsaved view state", text.Text.ToString());
+            Assert.Equal(Terminal.Gui.Attribute.Make(Color.White, Color.Blue), scheme.Normal);
+            Assert.Equal('▒', TerminalTheme.DesktopGlyph);
+            Assert.Equal(Terminal.Gui.Attribute.Make(Color.Black, Color.Green), TerminalTheme.ReadyColor);
+            Assert.Equal(Terminal.Gui.Attribute.Make(Color.BrightYellow, Color.Red), TerminalTheme.ExceptionColor);
+            TerminalTheme.Apply(ThemeKind.Muted);
+            Assert.Same(scheme, text.ColorScheme);
+            Assert.Equal(Terminal.Gui.Attribute.Make(Color.White, Color.DarkGray), scheme.Normal);
+            Assert.Equal(' ', TerminalTheme.DesktopGlyph);
         });
     }
 
@@ -266,9 +293,10 @@ public class UiSmokeTests : IDisposable
 
     // Boots the shell, opens the log viewer, pumps a few iterations so it lays out and
     // draws, then runs the test body with the shell and driver; always tears down.
-    private void WithLogViewer(Action<AppShell, FakeDriver> body)
+    private void WithLogViewer(Action<AppShell, FakeDriver> body, ThemeKind theme = ThemeKind.Muted)
     {
         var driver = InitHeadless();
+        TerminalTheme.Apply(theme);
         try
         {
             var shell = new AppShell(NewBinding());

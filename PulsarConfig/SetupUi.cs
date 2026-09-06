@@ -12,7 +12,7 @@ internal static class SetupUi
         Application.Init();
         try
         {
-            TerminalTheme.Apply();
+            TerminalTheme.Apply(ThemePreference.Load(ThemePreference.FilePath, ThemeKind.Muted));
             var window = new Window("Pulsar · Linux setup")
             {
                 Width = Dim.Fill(),
@@ -167,6 +167,7 @@ internal static class SetupUi
             };
             Application.Top.Add(
                 new StatusBar([
+                    new StatusItem(Key.F2, "~F2~ Theme", TerminalTheme.Choose),
                     new StatusItem(
                         Key.CtrlMask | Key.Q,
                         "~Ctrl+Q~ Quit",

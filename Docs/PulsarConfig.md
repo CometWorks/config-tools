@@ -162,3 +162,11 @@ PULSAR_TEST_RELEASE_ARCHIVE=/path/to/pulsar-v2.4.0-linux-x64.tar.gz \
 
 The reference bundle is the `PulsarForLinux-Native.*.7z` asset of
 [linux-compat release 1.0.16](https://github.com/CometWorks/linux-compat/releases/tag/1.0.16).
+
+## Appearance
+
+Press **F2 Theme** to choose **Muted** or **Turbo C**. Switching applies immediately
+and preserves the current form and operation. The choice is saved for both tools
+in [machine-local user settings](../README.md#appearance), independently of the
+Pulsar install and game profiles. Pulsar defaults to muted until a preference is
+saved.

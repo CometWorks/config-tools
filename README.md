@@ -1,15 +1,16 @@
 # CometWorks config tools
 
 Standalone terminal tools for Pulsar and Magnetar, built with .NET 10 and
-Terminal.Gui. Both use the same muted slate theme and managed console driver.
+Terminal.Gui. Both offer muted slate and classic Turbo C / Turbo Vision themes.
 
 ## Downloads
 
 Download from [Releases](https://github.com/CometWorks/config-tools/releases).
 Each tool is **one self-contained executable**, including .NET, Terminal.Gui,
 and their managed dependencies. No Python, NuGet, or separate .NET installation
-is needed to run the tools. Linux uses the usual bash/stty terminal utilities;
-the managed UI driver does not require ncurses.
+is needed to run the tools. Pulsar uses the managed console driver (standard
+bash/stty utilities on Linux). Magnetar keeps its existing native terminal
+driver; on Linux it uses ncurses/terminfo, with `-netdriver` as the managed fallback.
 
 | Tool | Release executable | Purpose |
 | --- | --- | --- |
@@ -28,6 +29,21 @@ SHA-256 checksums and license notices accompany the executables. These bundles
 contain the **configuration tools**; Pulsar/Magnetar and the games keep their
 own runtime and platform prerequisites. Pulsar setup downloads game-launcher
 packages from **SpaceGT/Pulsar**, not from this repository.
+
+## Appearance
+
+Use **F2 Theme** in PulsarConfig or **Tools → Theme** in MagnetarConfig to switch
+between **Muted** and **Turbo C** immediately. The selection is shared by both
+tools for your user account on this machine and survives tool updates:
+
+- Linux: `$XDG_CONFIG_HOME/CometWorks/config-tools/theme`, or
+  `~/.config/CometWorks/config-tools/theme` when XDG_CONFIG_HOME is unset.
+- Windows: `%LOCALAPPDATA%\CometWorks\config-tools\theme`.
+
+It is separate from game/server profiles and portable installation folders.
+With no saved preference, Pulsar defaults to muted and Magnetar to its original
+Turbo Vision appearance. Other running tool windows pick up the choice on their
+next launch. Removing this file restores the defaults.
 
 ## Tool guides
 

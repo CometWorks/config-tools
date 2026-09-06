@@ -12,7 +12,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Terminal.Gui" Version="1.19.0" />
-    <Compile Include="../Common/TerminalTheme.cs" Link="Ui/TerminalTheme.cs" />
+    <Compile Include="../Common/*.cs" Link="Ui/%(Filename)%(Extension)" />
     <InternalsVisibleTo Include="PulsarConfigTests" />
   </ItemGroup>
 </Project>

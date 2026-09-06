@@ -533,12 +533,6 @@ internal sealed class LogViewerView : Window
     /// </summary>
     private sealed class LogTextView : TextView
     {
-        // Highlight the text while keeping the pane's neutral background.
-        private static readonly Terminal.Gui.Attribute ReadyColor =
-            Terminal.Gui.Attribute.Make(Color.BrightGreen, Color.DarkGray);
-        private static readonly Terminal.Gui.Attribute ExceptionColor =
-            Terminal.Gui.Attribute.Make(Color.BrightRed, Color.DarkGray);
-
         // The redraw loop reuses one List<Rune> for every rune of a row, so classify
         // once per row and cache by reference — turning O(runes) work into O(rows).
         private List<Rune> cachedLine;
@@ -561,10 +555,10 @@ internal sealed class LogViewerView : Window
             switch (Classify(line))
             {
                 case LogHighlightKind.Ready:
-                    Application.Driver.SetAttribute(ReadyColor);
+                    Application.Driver.SetAttribute(TerminalTheme.ReadyColor);
                     return true;
                 case LogHighlightKind.Exception:
-                    Application.Driver.SetAttribute(ExceptionColor);
+                    Application.Driver.SetAttribute(TerminalTheme.ExceptionColor);
                     return true;
                 default:
                     return false;

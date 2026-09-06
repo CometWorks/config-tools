@@ -1,6 +1,6 @@
 # MagnetarConfig — user manual
 
-**MagnetarConfig** is a cross-platform terminal UI (Terminal.Gui, muted slate theme) that configures **and operates** one Space Engineers 1 Dedicated
+**MagnetarConfig** is a cross-platform terminal UI (Terminal.Gui, classic Turbo Vision theme by default) that configures **and operates** one Space Engineers 1 Dedicated
 Server instance running under Magnetar. From a single screen you edit the
 server's global config, each world's session settings and mod list, choose and
 create worlds, manage Magnetar plugins / sources / profiles, start and stop the
@@ -85,9 +85,16 @@ make the Linux file executable (`chmod +x`), and run it. It needs no separate
 .NET installation. Place it beside your Magnetar launcher for the existing
 defaults, or pass `-magnetar`, `-config`, and `-path` explicitly.
 
-The managed console driver is the default; `-netdriver` remains accepted for
-older command lines. On Linux the driver uses the normal `bash`/`stty` terminal
-utilities; it does not use ncurses.
+The existing native terminal driver remains the default (ncurses/terminfo on
+Linux). Use `-netdriver` for the managed System.Console fallback, which uses
+standard `bash`/`stty` utilities on Linux.
+
+Use **Tools → Theme** to switch between the original **Turbo C** appearance and
+**Muted**. Changes apply immediately, including desktop and log colors; current
+views and edits remain in place. The choice is shared with PulsarConfig and
+saved in [machine-local user settings](../README.md#appearance), outside server
+instances and installation folders. With no saved preference, Magnetar retains
+its original theme.
 
 Run it from the install folder, next to the launcher. The bundle is
 portable: the tool finds the launcher and the Magnetar config dir relative to

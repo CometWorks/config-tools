@@ -65,14 +65,14 @@ internal static class Program
             try { Console.OutputEncoding = Encoding.UTF8; } catch { }
         }
 
-        // The managed console driver works without a separate ncurses install.
-        // Keep accepting -netdriver for existing scripts.
-        Application.UseSystemConsole = true;
+        // NetDriver is a portable fallback when curses/terminfo is broken.
+        if (cli.NetDriver)
+            Application.UseSystemConsole = true;
 
         try
         {
             Application.Init();
-            TerminalTheme.Apply();
+            TerminalTheme.Apply(ThemePreference.Load(ThemePreference.FilePath, ThemeKind.Turbo));
 
             InstanceBinding binding = cli.ToBinding();
 

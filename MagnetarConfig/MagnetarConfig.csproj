@@ -52,7 +52,7 @@
     <PackageReference Include="Terminal.Gui" Version="1.19.0" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\Common\TerminalTheme.cs" Link="Ui\TerminalTheme.cs" />
+    <Compile Include="../Common/*.cs" Link="Ui/%(Filename)%(Extension)" />
     <InternalsVisibleTo Include="MagnetarConfigTests" />
   </ItemGroup>
   <!-- Deploy the config tool with the same layout the launchers use (see

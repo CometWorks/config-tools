@@ -111,6 +111,7 @@ internal sealed class AppShell : Toplevel
             {
                 new MenuItem("_Logs", "", ShowLogs),
                 new MenuItem("_Dashboard", "", ShowDashboard),
+                new MenuItem("_Theme…", "", TerminalTheme.Choose),
             }),
             new MenuBarItem("_Help", new[]
             {

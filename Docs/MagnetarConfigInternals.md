@@ -21,7 +21,7 @@ limitations and future work.
 5. [Data model](#5-data-model)
 6. [The option metadata registry](#6-the-option-metadata-registry)
 7. [File I/O layer](#7-file-io-layer)
-8. [UI design (muted slate theme)](#8-ui-design)
+8. [UI design (selectable themes)](#8-ui-design)
 9. [State machines](#9-state-machines)
 11. [Cross-platform notes](#11-cross-platform-notes)
 12. [Testing strategy](#12-testing-strategy)
@@ -924,11 +924,17 @@ and each world's settings share one implementation.
 
 ### 8.1 Shared terminal theme
 
-`Common/TerminalTheme.cs` is linked into both tools. Windows and dialogs use
-white on slate; focus uses blue, shortcuts cyan, and the desktop is plain dark
-background. Errors use red foreground rather than a solid red panel. All colors
-are in Terminal.Gui's 16-color palette. Both tools default to the managed
-System.Console driver; Linux uses bash/stty for terminal mode handling.
+`Common/TerminalTheme.cs` is linked into both tools. Its Turbo palette preserves
+Magnetar's original Turbo Vision colors, shaded desktop, and vivid log markers;
+Muted uses white on slate, blue focus, cyan shortcuts, and a plain background.
+**Tools → Theme** switches the existing color schemes in place so views, focus,
+and unsaved edits survive. Log highlights and desktop glyphs follow the theme.
+
+`Common/ThemePreference.cs` stores the shared selection atomically in the user's
+local config-tools settings (see [Appearance](../README.md#appearance)). It is
+independent of the per-instance `MagnetarConfig.xml` and portable install root.
+Missing, invalid, or unreadable preferences fall back to each tool's default:
+Turbo for Magnetar, Muted for Pulsar. Save errors are shown to the user.
 
 ---
 
@@ -1131,9 +1137,9 @@ the error is surfaced); a name collision is rejected before any copy.
 
 Developed and used on Linux now; must work on Windows unchanged later:
 
-- **Drivers**: `Application.UseSystemConsole = true` selects the managed
-  driver on both platforms. `-netdriver` remains accepted for existing command
-  lines. The shared slate palette uses the same 16-color set on both platforms.
+- **Drivers**: retain Terminal.Gui's default platform driver. `-netdriver`
+  selects the managed System.Console fallback. Both themes use the same
+  16-color set on both platforms.
 - **Signals / OS split**: signal sending (SIGTERM stop, SIGHUP reload) uses
   `kill(2)` via a small P/Invoke (as .NET has no managed "send signal" API) and
   is gated at runtime on Linux (`PlatformPaths.IsLinux`). On Windows: Start,
