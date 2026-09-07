@@ -1,2 +1,10 @@
 __pycache__/
 *.py[cod]
+**/bin/
+**/obj/
+*.user
+.vs/
+.idea/
+.ruff_cache/
+dist/
+publish/

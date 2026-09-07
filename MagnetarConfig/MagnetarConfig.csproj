@@ -1,0 +1,62 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Product>Magnetar</Product>
+    <Copyright>© 2025 SpaceGT</Copyright>
+    <AssemblyTitle>MagnetarConfig</AssemblyTitle>
+    <Description>Terminal UI configuration tool for a Magnetar-managed Space Engineers 1 Dedicated Server</Description>
+  </PropertyGroup>
+  <PropertyGroup>
+    <RootNamespace>Magnetar.Config</RootNamespace>
+    <AssemblyName>MagnetarConfig</AssemblyName>
+    <PackageId>MagnetarConfig</PackageId>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- .NET 10 only, on both Windows and Linux. -->
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+  </PropertyGroup>
+  <PropertyGroup>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <Configurations>Debug;Release</Configurations>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(PublishSingleFile)' == 'true'">
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- Terminal.Gui and XML serialization use reflection. -->
+    <PublishTrimmed>false</PublishTrimmed>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+  <!-- Include the Windows icon when cross-publishing from Linux, too. -->
+  <PropertyGroup Condition="'$(OS)' == 'Windows_NT' or '$(RuntimeIdentifier)' == 'win-x64'">
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Terminal.Gui v1 (classic API). Pinned to the last v1 stable; v2 is a
+         breaking beta. See Docs/MagnetarConfig.md §4.2. -->
+    <PackageReference Include="Terminal.Gui" Version="1.19.0" />
+    <PackageReference Include="SharpCompress" Version="0.50.4" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Common/*.cs" Link="Ui/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="../Licenses/SharpCompress.txt" Link="Install/SharpCompress-LICENSE.txt" />
+    <InternalsVisibleTo Include="MagnetarConfigTests" />
+  </ItemGroup>
+</Project>
