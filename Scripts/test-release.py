@@ -28,53 +28,67 @@ class ReleaseTests(unittest.TestCase):
 
     def lifecycle(self, fail=None):
         releases = [
-            {'id': 1, 'tag_name': 'pulsarconfig-v1.0.0', 'draft': False, 'prerelease': False, 'published_at': '2026-01-01'},
-            {'id': 2, 'tag_name': 'pulsarconfig-v1.1.0', 'draft': True, 'prerelease': False, 'published_at': None},
-            {'id': 3, 'tag_name': 'magnetarconfig-v2.0.0', 'draft': False, 'prerelease': False, 'published_at': '2026-01-02'},
+            {'id': 1, 'tag_name': 'pulsarconfig-v1.0.0', 'draft': False, 'prerelease': False},
+            {'id': 2, 'tag_name': 'pulsarconfig-v1.1.0', 'draft': True, 'prerelease': False},
+            {'id': 3, 'tag_name': 'magnetarconfig-v2.0.0', 'draft': False, 'prerelease': False},
+            {'id': 4, 'tag_name': 'pulsarconfig-v0.9.0', 'draft': True, 'prerelease': False},
         ]
         candidate = copy.deepcopy(releases[1])
         calls = []
         def update(ident, data):
-            calls.append((ident, data['draft']))
-            if fail == 'archive' and ident == 1:
-                raise RuntimeError('Archive failed')
-            if fail == 'publish' and ident == 2:
+            calls.append(('publish', ident))
+            self.assertFalse(data['draft'])  # No old release ever becomes a draft.
+            if fail == 'publish':
                 raise RuntimeError('Publish failed')
-            next(r for r in releases if r['id'] == ident).update(data)
-            for tool in release.TOOLS:
-                self.assertLessEqual(sum(not r['draft'] and r['tag_name'].startswith(tool.lower() + '-v') for r in releases), 1)
-            if fail == 'response' and ident == 2:
+            if fail != 'unconfirmed':
+                next(r for r in releases if r['id'] == ident).update(data)
+            if fail == 'response':
                 raise RuntimeError('Published but response was lost')
-        return releases, candidate, calls, update
+        def delete(ident):
+            calls.append(('delete', ident))
+            self.assertFalse(next(r for r in releases if r['id'] == 2)['draft'])
+            if fail == 'delete':
+                raise RuntimeError('Delete failed')
+            releases[:] = [r for r in releases if r['id'] != ident]
+        return releases, candidate, calls, update, delete
 
-    def test_other_tool_untouched_and_no_public_overlap(self):
-        releases, candidate, calls, update = self.lifecycle()
-        release.promote(candidate, copy.deepcopy(releases), update, lambda: releases)
-        self.assertEqual(calls, [(1, True), (2, False)])
-        self.assertEqual([r['id'] for r in releases if not r['draft']], [2, 3])
-        release.promote(releases[1], copy.deepcopy(releases), update, lambda: releases)
-        self.assertEqual(len(calls), 2)  # rerun is a no-op
+    def test_deletes_old_public_and_draft_releases_but_leaves_other_tool(self):
+        releases, candidate, calls, update, delete = self.lifecycle()
+        release.promote(candidate, update, lambda: copy.deepcopy(releases), delete)
+        self.assertEqual(calls, [('publish', 2), ('delete', 1), ('delete', 4)])
+        self.assertEqual([r['id'] for r in releases], [2, 3])
+        release.promote(releases[0], update, lambda: copy.deepcopy(releases), delete)
+        self.assertEqual(len(calls), 3)  # Rerun is a no-op.
 
-    def test_publish_failure_restores_previous_release(self):
-        releases, candidate, calls, update = self.lifecycle('publish')
+    def test_publish_failure_leaves_previous_release_untouched(self):
+        releases, candidate, calls, update, delete = self.lifecycle('publish')
         with self.assertRaises(RuntimeError):
-            release.promote(candidate, copy.deepcopy(releases), update, lambda: releases)
-        self.assertEqual(calls, [(1, True), (2, False), (1, False)])
+            release.promote(candidate, update, lambda: releases, delete)
+        self.assertEqual(calls, [('publish', 2)])
         self.assertEqual([r['id'] for r in releases if not r['draft']], [1, 3])
 
-    def test_archive_failure_never_publishes_second_release(self):
-        releases, candidate, calls, update = self.lifecycle('archive')
-        with self.assertRaises(RuntimeError):
-            release.promote(candidate, copy.deepcopy(releases), update, lambda: releases)
-        self.assertEqual(calls, [(1, True)])
-        self.assertEqual([r['id'] for r in releases if not r['draft']], [1, 3])
+    def test_unconfirmed_publication_preserves_previous_releases(self):
+        releases, candidate, calls, update, delete = self.lifecycle('unconfirmed')
+        with self.assertRaises(ValueError):
+            release.promote(candidate, update, lambda: releases, delete)
+        self.assertEqual(calls, [('publish', 2)])
+        self.assertEqual(len(releases), 4)
 
-    def test_lost_publish_response_does_not_restore_old_release(self):
-        releases, candidate, calls, update = self.lifecycle('response')
+    def test_delete_failure_keeps_new_release_public_and_can_retry(self):
+        releases, candidate, calls, update, delete = self.lifecycle('delete')
         with self.assertRaises(RuntimeError):
-            release.promote(candidate, copy.deepcopy(releases), update, lambda: releases)
-        self.assertEqual(calls, [(1, True), (2, False)])
-        self.assertEqual([r['id'] for r in releases if not r['draft']], [2, 3])
+            release.promote(candidate, update, lambda: releases, delete)
+        self.assertEqual(calls, [('publish', 2), ('delete', 1)])
+        self.assertFalse(releases[1]['draft'])
+        release.promote(releases[1], update, lambda: copy.deepcopy(releases),
+                        lambda ident: releases.__setitem__(slice(None), [r for r in releases if r['id'] != ident]))
+        self.assertEqual([r['id'] for r in releases], [2, 3])
+
+    def test_lost_publish_response_checks_remote_state_before_deleting(self):
+        releases, candidate, calls, update, delete = self.lifecycle('response')
+        release.promote(candidate, update, lambda: releases, delete)
+        self.assertEqual(calls, [('publish', 2), ('delete', 1), ('delete', 4)])
+        self.assertEqual([r['id'] for r in releases], [2, 3])
 
     def test_upload_verified_before_switch_and_stale_builds_do_not_promote(self):
         for outcome in ('success', 'bad-checksum', 'stale'):
@@ -82,13 +96,16 @@ class ReleaseTests(unittest.TestCase):
                 paths = [Path(folder) / name for name in ('PulsarConfig-linux-x64.bin', 'SHA256SUMS.txt')]
                 for path in paths:
                     path.write_bytes(b'fixture')
-                releases, _, _, _ = self.lifecycle()
+                releases, _, _, _, _ = self.lifecycle()
                 releases.pop(1)  # New candidate must be prepared by publish().
                 writes, uploaded = [], []
                 def api(path, method='GET', payload=None):
                     if method == 'PATCH':
                         writes.append((path, payload))
                         next(r for r in releases if path.endswith('/' + str(r['id']))).update(payload)
+                    elif method == 'DELETE':
+                        writes.append((path, None))
+                        releases[:] = [r for r in releases if not path.endswith('/' + str(r['id']))]
                     elif path.endswith('/commits/main'):
                         return {'sha': 'changed' if outcome == 'stale' and uploaded else 'head'}
                     elif '/git/matching-refs/' in path:
@@ -117,7 +134,7 @@ class ReleaseTests(unittest.TestCase):
                     else:
                         release.publish('PulsarConfig', '1.1.0', folder)
                 if outcome == 'success':
-                    self.assertEqual(len(writes), 2)
+                    self.assertEqual(len(writes), 3)
                     self.assertEqual([r['id'] for r in releases if not r['draft']], [3, 2])
                 else:
                     self.assertFalse(writes)

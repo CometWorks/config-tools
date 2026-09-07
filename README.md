@@ -78,10 +78,13 @@ passive. Use **Tab / Shift+Tab** between controls and **Enter** to activate one;
 use arrow keys inside lists and menus. **F1** returns home, **F7** opens sources,
 **F9** activates/closes the menu bar, and the existing F2–F6/F10 shortcuts remain
 available. Lists show a selection marker; actions sit below the divider.
-Moving the mouse highlights buttons and list rows without changing keyboard
-focus or the selected item. Keyboard input restores keyboard highlighting;
-click or press Enter to activate an action. Open forms and setup dialogs keep
-their own keyboard scope.
+Moving the mouse highlights buttons, list rows, menu headings and bottom-bar
+shortcuts without changing keyboard focus or the selected item. The bottom bar
+never takes keyboard focus; its function-key shortcuts still work. Keyboard input restores keyboard highlighting;
+click or press Enter to activate an action. The bottom shortcuts remain active
+in setup and dialogs. Navigation cancels an open edit form without saving it;
+F2 changes the theme in place. If setup is running, navigation requests cancellation
+and waits for cleanup before opening the requested screen or starting the game.
 
 ## Appearance
 
@@ -148,14 +151,17 @@ A matching tag on the current `main` commit can still trigger an individual tool
 release, or use **Run workflow → tool** on `main` to select either tool separately.
 PRs and manual runs on other branches produce `-dev` artifacts without publishing.
 
-CI maintains **at most one public release per tool**. It uploads the replacement
-as a draft and verifies every asset's SHA-256 digest before changing visibility.
-Previous releases for that tool become drafts; their assets and Git tags remain
-available to maintainers. The other tool's release is untouched. Publishing is
-serialized per tool, and stale builds cannot replace the current `main` release.
-If promotion fails, CI checks the actual remote state before restoring the
-previous public release. GitHub's visibility changes are separate API calls, so
-there is a brief interval with no public release during the switch.
+CI keeps **one release per tool** after a successful run. It uploads the replacement
+as a draft, verifies every asset's SHA-256 digest, and confirms the new release is
+public before **deleting all superseded releases and their assets**, including
+historical drafts. Old releases are never put back into draft. Git tags remain
+available for source history; the other tool's release is untouched.
+
+Publishing is serialized per tool, and stale builds cannot replace the current
+`main` release. A failed publication leaves the previous release available. If
+cleanup fails, the new release stays live and CI fails; rerunning the workflow
+retries cleanup without rebuilding the published version. GitHub uses separate
+API calls, so both versions can briefly be public while deletion completes.
 
 Stable versions use three numeric components (`X.Y.Z`); prereleases are excluded
 from self-update. The updater and compatibility bootstrap discover the remaining

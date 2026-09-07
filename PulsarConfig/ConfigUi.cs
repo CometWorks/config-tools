@@ -20,6 +20,7 @@ internal static class ConfigUi
             );
             using var pointer = new PointerHighlight();
             using var shell = new ConfigShell(options);
+            using var shortcuts = new GlobalShortcuts(shell);
             using var startupUpdate = new StartupUpdateCheck(
                 shell,
                 release =>
@@ -63,7 +64,7 @@ internal sealed class ConfigShell : Toplevel
             Width = Dim.Fill(1),
         };
         Add(
-            new MenuBar(
+            new WorkspaceMenuBar(
                 new[]
                 {
                     new MenuBarItem(
@@ -113,7 +114,7 @@ internal sealed class ConfigShell : Toplevel
             ),
             location,
             status,
-            new StatusBar(
+            new WorkspaceStatusBar(
                 new[]
                 {
                     new StatusItem(Key.F1, "~F1~ Home", Dashboard),
@@ -314,9 +315,18 @@ internal sealed class ConfigShell : Toplevel
     private void Setup() =>
         Safe(() =>
         {
-            SetupUi.Run(options);
-            editor = new PluginEditor(options);
-            Dashboard();
+            MenuBar.Visible = status.Visible = false;
+            try
+            {
+                SetupUi.Run(options);
+                editor = new PluginEditor(options);
+                Dashboard();
+            }
+            finally
+            {
+                MenuBar.Visible = status.Visible = true;
+                SetNeedsDisplay();
+            }
         });
 
     private async void StartGame()

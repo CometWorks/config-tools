@@ -11,6 +11,76 @@ public class PointerHighlightTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public void Global_navigation_waits_for_modal_cleanup_and_keeps_bar_unfocusable(bool mouse)
+    {
+        var driver = new FakeDriver();
+        var loop = (IMainLoopDriver)Activator.CreateInstance(
+            typeof(FakeDriver).Assembly.GetType("Terminal.Gui.FakeMainLoop")!,
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+            null, [driver], null)!;
+        Application.Init(driver, loop);
+        try
+        {
+            using var pointer = new PointerHighlight();
+            using var owner = new Toplevel();
+            bool navigated = false, busy = true, cancellationRequested = false;
+            var bar = new WorkspaceStatusBar([
+                new StatusItem(Key.F1, "~F1~ Home", () =>
+                {
+                    Assert.Same(owner, Application.Current);
+                    navigated = true;
+                }),
+            ]);
+            owner.Add(new WorkspaceMenuBar([]), bar);
+            using var shortcuts = new GlobalShortcuts(owner);
+            var outer = Application.Begin(owner);
+            try
+            {
+                using var modal = new Dialog("Busy setup");
+                modal.Closing += args =>
+                {
+                    cancellationRequested = true;
+                    args.Cancel = busy;
+                };
+                var inner = Application.Begin(modal);
+                modal.Running = true;
+                try
+                {
+                    if (mouse)
+                    {
+                        var click = new MouseEvent
+                        {
+                            X = 5, Y = driver.Rows - 1, View = modal,
+                            Flags = MouseFlags.Button1Clicked,
+                        };
+                        Application.RootMouseEvent(click);
+                        Assert.True(click.Handled);
+                        Assert.True(PointerHighlight.IsOver(bar));
+                    }
+                    else
+                        Assert.True(Application.RootKeyEvent(new KeyEvent(Key.F1, new KeyModifiers())));
+                    Assert.True(cancellationRequested);
+                    Assert.True(modal.Running);
+                    Assert.False(navigated);
+                    Assert.False(bar.CanFocus);
+                    busy = false;
+                    Application.Iteration();
+                    Assert.False(modal.Running);
+                    Assert.False(navigated);
+                }
+                finally { Application.End(inner); }
+                Application.Iteration();
+                Application.MainLoop.MainIteration();
+                Assert.True(navigated);
+            }
+            finally { Application.End(outer); }
+        }
+        finally { Application.Shutdown(); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public void Hover_preserves_focus_and_selection_and_keyboard_takes_priority(bool turbo)
     {
         var driver = new FakeDriver();
@@ -48,7 +118,15 @@ public class PointerHighlightTests
                 Height = 4,
             };
             list.SetSource(new[] { "  One", "  Two" });
-            top.Add(first, second, list);
+            var menu = new WorkspaceMenuBar([
+                new MenuBarItem("_File", [new MenuItem("_Open", "", () => { })]),
+                new MenuBarItem("_Game", [new MenuItem("_Start", "", () => { })]),
+            ]);
+            var status = new WorkspaceStatusBar([
+                new StatusItem(Key.F1, "~F1~ Home", () => { }),
+                new StatusItem(Key.F10, "~F10~ Quit", () => { }, () => false),
+            ]);
+            top.Add(menu, first, second, list, status);
             int firstClicks = 0,
                 secondClicks = 0;
             first.Clicked += () => firstClicks++;
@@ -101,6 +179,54 @@ public class PointerHighlightTests
                 second.Enabled = false;
                 Application.RootMouseEvent(mouse);
                 Assert.False(PointerHighlight.IsOver(second));
+
+                // Closed navigation bars paint hover without opening menus or taking focus.
+                var hoverColor = turbo ? TerminalTheme.Menu.Focus : TerminalTheme.HomeAction.Focus;
+                Application.RootMouseEvent(
+                    new MouseEvent
+                    {
+                        X = 2,
+                        Y = 0,
+                        View = menu,
+                        Flags = MouseFlags.ReportMousePosition,
+                    }
+                );
+                menu.Redraw(menu.Bounds);
+                Assert.Equal((int)hoverColor, driver.Contents[0, 2, 1]);
+                Assert.False(menu.IsMenuOpen);
+                Assert.True(first.HasFocus);
+                Application.RootKeyEvent(key);
+                menu.Redraw(menu.Bounds);
+                Assert.NotEqual((int)hoverColor, driver.Contents[0, 2, 1]);
+
+                int bottom = driver.Rows - 1;
+                Application.RootMouseEvent(
+                    new MouseEvent
+                    {
+                        X = 5,
+                        Y = bottom,
+                        View = status,
+                        Flags = MouseFlags.ReportMousePosition,
+                    }
+                );
+                status.Redraw(status.Bounds);
+                Assert.Equal((int)hoverColor, driver.Contents[bottom, 5, 1]);
+                Assert.False(status.CanFocus);
+                Assert.True(first.HasFocus);
+                Application.RootKeyEvent(key);
+                status.Redraw(status.Bounds);
+                Assert.NotEqual((int)hoverColor, driver.Contents[bottom, 5, 1]);
+                Application.RootMouseEvent(
+                    new MouseEvent
+                    {
+                        X = 15,
+                        Y = bottom,
+                        View = status,
+                        Flags = MouseFlags.ReportMousePosition,
+                    }
+                );
+                status.Redraw(status.Bounds);
+                Assert.Equal((int)status.ColorScheme.Disabled, driver.Contents[bottom, 15, 1]);
             }
             finally
             {

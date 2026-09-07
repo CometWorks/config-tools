@@ -92,7 +92,8 @@ internal static class SetupUi
                 }
             );
             var lines = new List<string>();
-            bool busy = false;
+            bool busy = false,
+                leaving = false;
             CancellationTokenSource? cancellation = null;
             var controls = new List<View> { target, game, version, source, settings };
             void Append(string message)
@@ -169,6 +170,8 @@ internal static class SetupUi
                         cancellation = null;
                         foreach (var control in controls)
                             control.Enabled = true;
+                        if (leaving)
+                            Application.RequestStop();
                     });
                 }
             }
@@ -204,31 +207,19 @@ internal static class SetupUi
                 Y = 13,
                 Height = 3,
             };
-            quit.Clicked += () =>
-            {
-                if (!busy)
-                    Application.RequestStop();
-            };
+            quit.Clicked += () => Application.RequestStop();
             window.Add(quit);
             top.Closing += args =>
             {
-                if (busy)
-                    args.Cancel = true;
+                if (!busy)
+                    return;
+                args.Cancel = true;
+                if (leaving)
+                    return;
+                leaving = true;
+                Append("Cancelling setup before leaving…");
+                cancellation?.Cancel();
             };
-            top.Add(
-                new StatusBar([
-                    new StatusItem(Key.F2, "~F2~ Theme", TerminalTheme.Choose),
-                    new StatusItem(
-                        Key.CtrlMask | Key.Q,
-                        "~Ctrl+Q~ Back",
-                        () =>
-                        {
-                            if (!busy)
-                                Application.RequestStop();
-                        }
-                    ),
-                ])
-            );
             Append(
                 "Install or update from SpaceGT/Pulsar releases. Steam launch options will be shown here."
             );

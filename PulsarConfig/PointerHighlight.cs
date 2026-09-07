@@ -25,6 +25,9 @@ internal sealed class PointerHighlight : IDisposable
     internal static int Row(View view) =>
         position is { } point ? view.ScreenToView(point.X, point.Y).Y : -1;
 
+    internal static int Column(View view) =>
+        position is { } point ? view.ScreenToView(point.X, point.Y).X : -1;
+
     private bool Key(KeyEvent key)
     {
         if (MouseActive)

@@ -52,27 +52,28 @@ def list_releases(repo):
     return [release for page in pages for release in page]
 
 
-def promote(candidate, releases, update, refresh):
-    """No overlap: unpublish old releases before publishing the verified candidate.
+def promote(candidate, update, refresh, delete):
+    """Verify the replacement is public before deleting superseded releases.
 
-    Restore one previous release on a failed promotion. Re-read after errors because
-    an API request can succeed remotely even if its response is lost.
+    Never turn old releases back into drafts. A failed publication leaves the
+    previous release intact; a failed deletion can be retried without rebuilding.
     """
     prefix = candidate['tag_name'].split('-v', 1)[0] + '-v'
-    previous = [r for r in releases if r['id'] != candidate['id']
-                and r['tag_name'].startswith(prefix) and not r['draft']]
-    previous.sort(key=lambda r: r.get('published_at') or '', reverse=True)
-    try:
-        for release in previous:
-            update(release['id'], {'draft': True})
-        if candidate['draft']:
+    if candidate['draft']:
+        try:
             update(candidate['id'], {'draft': False, 'prerelease': False, 'make_latest': 'false'})
-    except Exception:
-        current = refresh()  # If status cannot be established, do not risk publishing a second release.
-        public = [r for r in current if r['tag_name'].startswith(prefix) and not r['draft']]
-        if not public and previous:
-            update(previous[0]['id'], {'draft': False, 'prerelease': previous[0]['prerelease'], 'make_latest': 'false'})
-        raise
+        except Exception:
+            # The request may have succeeded remotely but lost its response.
+            published = next((r for r in refresh() if r['id'] == candidate['id']), None)
+            if not published or published['draft'] or published['prerelease']:
+                raise
+    current = refresh()
+    published = next((r for r in current if r['id'] == candidate['id']), None)
+    if not published or published['draft'] or published['prerelease']:
+        raise ValueError('Replacement is not a published stable release; preserving previous releases')
+    for previous in current:
+        if previous['id'] != candidate['id'] and previous['tag_name'].startswith(prefix):
+            delete(previous['id'])  # Deletes assets too, but leaves the Git tag intact.
 
 
 def publish(tool, expected, directory):
@@ -96,7 +97,7 @@ def publish(tool, expected, directory):
         raise ValueError('Artifacts include another tool or platform')
     releases = list_releases(repo)
     candidate = next((r for r in releases if r['tag_name'] == tag), None)
-    # Complete versions (including archived drafts) are reused, never rebuilt in place.
+    # Complete versions (including completed drafts) are reused, never rebuilt in place.
     remote = {asset['name']: asset for asset in candidate['assets']} if candidate else {}
     complete = all(re.fullmatch(r'sha256:[0-9a-fA-F]{64}', remote.get(path.name, {}).get('digest') or '') for path in files)
     if candidate is None or (candidate['draft'] and not complete):
@@ -121,9 +122,9 @@ def publish(tool, expected, directory):
     if not current():
         print('Main changed while preparing the draft; leaving the current public release in place.')
         return
-    promote(candidate, releases, lambda ident, data: api(f'{base}/releases/{ident}', 'PATCH', data),
-            lambda: list_releases(repo))
-    print(f'{tag} is the sole published release for {tool}. Other versions remain as drafts; tags are retained.')
+    promote(candidate, lambda ident, data: api(f'{base}/releases/{ident}', 'PATCH', data),
+            lambda: list_releases(repo), lambda ident: api(f'{base}/releases/{ident}', 'DELETE'))
+    print(f'{tag} is the sole published release for {tool}. Superseded releases and assets are deleted; Git tags are retained.')
 
 
 if __name__ == '__main__':
