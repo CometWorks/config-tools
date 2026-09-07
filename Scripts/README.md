@@ -16,4 +16,12 @@ smoke tests, not for using or updating the tools.
 
 `publish.ps1 -Tool PulsarConfig|MagnetarConfig -Rid linux-x64|win-x64` produces a
 self-contained single executable and runs `test-self-update.py` on a matching
-host OS. See the root README for independent release tags.
+host OS. The version comes from evaluated project build properties; `-Preview`
+adds the development suffix. `-ExpectedVersion` only asserts CI's planned version,
+and cannot override it.
+
+`release.py` plans the platform matrix from project versions and publishes one
+public release per tool from the current `main` commit. Older releases become
+drafts only after replacement assets are uploaded and verified. `test-release.py`
+exercises selection, visibility ordering, retries and failure recovery offline.
+See the root README for the release lifecycle and manual per-tool dispatch.

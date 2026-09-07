@@ -1,12 +1,16 @@
 param(
     [Parameter(Mandatory=$true)][ValidateSet('PulsarConfig', 'MagnetarConfig')][string]$Tool,
     [Parameter(Mandatory=$true)][ValidateSet('linux-x64', 'win-x64')][string]$Rid,
-    [string]$Version
+    [switch]$Preview,
+    [string]$ExpectedVersion
 )
 $ErrorActionPreference = 'Stop'
 if ($Tool -eq 'PulsarConfig' -and $Rid -ne 'linux-x64') { throw 'PulsarConfig supports Linux x64' }
-if (-not $Version) { $Version = ([xml](Get-Content "$Tool/$Tool.csproj")).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1 }
-if ($Version -notmatch '^\d+\.\d+\.\d+(-dev)?$') { throw "Invalid tool version: $Version" }
+$Version = (dotnet msbuild "$Tool/$Tool.csproj" -nologo -p:Configuration=Release -p:RuntimeIdentifier=$Rid -getProperty:Version | Out-String).Trim()
+if ($LASTEXITCODE -ne 0 -or $Version -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid project version: $Version" }
+if ($ExpectedVersion -and $Version -ne $ExpectedVersion) { throw "Project version changed between planning and publishing: $Version != $ExpectedVersion" }
+if ($env:GITHUB_REF -like 'refs/tags/*' -and $env:GITHUB_REF_NAME -cne "$($Tool.ToLowerInvariant())-v$Version") { throw 'Release tag must match the project version' }
+if ($Preview) { $Version += '-dev' }
 $output = Join-Path $PWD "publish/$Tool-$Rid"
 if (Test-Path $output) { Remove-Item $output -Recurse -Force }
 New-Item -ItemType Directory -Force dist | Out-Null

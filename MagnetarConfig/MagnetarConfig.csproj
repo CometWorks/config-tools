@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <Product>Magnetar</Product>
-    <Version>1.0.0</Version>
     <Copyright>© 2025 SpaceGT</Copyright>
     <AssemblyTitle>MagnetarConfig</AssemblyTitle>
     <Description>Terminal UI configuration tool for a Magnetar-managed Space Engineers 1 Dedicated Server</Description>

@@ -6,35 +6,36 @@ on:
     branches: [main]
     tags: ['pulsarconfig-v*', 'magnetarconfig-v*']
   workflow_dispatch:
+    inputs:
+      tool:
+        description: Tool to build (publishes only from main)
+        type: choice
+        options: [all, PulsarConfig, MagnetarConfig]
+        default: all
 
 permissions:
   contents: read
+
+env:
+  DOTNET_NOLOGO: 'true'
 
 jobs:
   select:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.select.outputs.matrix }}
+      releases: ${{ steps.select.outputs.releases }}
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Test release planning and promotion
+        run: python Scripts/test-release.py
       - id: select
-        shell: python {0}
-        run: |
-          import json, os, re
-          ref = os.environ['GITHUB_REF']
-          rows = [
-              {'tool': 'PulsarConfig', 'os': 'ubuntu-latest', 'rid': 'linux-x64'},
-              {'tool': 'MagnetarConfig', 'os': 'ubuntu-latest', 'rid': 'linux-x64'},
-              {'tool': 'MagnetarConfig', 'os': 'windows-latest', 'rid': 'win-x64'},
-          ]
-          if ref.startswith('refs/tags/'):
-              match = re.fullmatch(r'(pulsarconfig|magnetarconfig)-v(\d+\.\d+\.\d+)', os.environ['GITHUB_REF_NAME'])
-              if not match:
-                  raise SystemExit('Use pulsarconfig-vX.Y.Z or magnetarconfig-vX.Y.Z for stable releases')
-              rows = [row for row in rows if row['tool'].lower() == match[1]]
-              for row in rows:
-                  row['version'] = match[2]
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              output.write('matrix=' + json.dumps({'include': rows}) + '\n')
+        env:
+          SELECTED_TOOL: ${{ inputs.tool || 'all' }}
+        run: python Scripts/release.py plan
 
   build:
     needs: select
@@ -54,14 +55,10 @@ jobs:
         env:
           TOOL: ${{ matrix.tool }}
           RID: ${{ matrix.rid }}
-          RELEASE_VERSION: ${{ matrix.version }}
+          EXPECTED_VERSION: ${{ matrix.version }}
         run: |
-          $version = $env:RELEASE_VERSION
-          if (-not $version) {
-            $version = ([xml](Get-Content "$env:TOOL/$env:TOOL.csproj")).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
-            $version += '-dev'
-          }
-          ./Scripts/publish.ps1 -Tool $env:TOOL -Rid $env:RID -Version $version
+          $preview = $env:GITHUB_REF -ne 'refs/heads/main' -and $env:GITHUB_REF -notlike 'refs/tags/*'
+          ./Scripts/publish.ps1 -Tool $env:TOOL -Rid $env:RID -ExpectedVersion $env:EXPECTED_VERSION -Preview:$preview
       - uses: actions/upload-artifact@v4
         with:
           name: config-tools-${{ matrix.tool }}-${{ matrix.rid }}
@@ -69,16 +66,25 @@ jobs:
           if-no-files-found: error
 
   release:
-    if: startsWith(github.ref, 'refs/tags/')
-    needs: build
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+    needs: [select, build]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.select.outputs.releases) }}
+    concurrency:
+      group: config-tools-release-${{ matrix.tool }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
       - uses: actions/download-artifact@v4
         with:
-          pattern: config-tools-*
+          pattern: config-tools-${{ matrix.tool }}-*
           merge-multiple: true
           path: dist
       - name: Add notices and checksums
@@ -88,7 +94,9 @@ jobs:
           chmod +x dist/*.bin
           cd dist
           sha256sum * > SHA256SUMS.txt
-      - name: Create independent tool release
+      - name: Publish the configured version and archive previous releases
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --generate-notes --title "$GITHUB_REF_NAME"
+          TOOL: ${{ matrix.tool }}
+          VERSION: ${{ matrix.version }}
+        run: python Scripts/release.py publish "$TOOL" "$VERSION" dist

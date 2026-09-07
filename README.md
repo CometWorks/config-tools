@@ -109,13 +109,32 @@ dotnet publish MagnetarConfig/MagnetarConfig.csproj -c Release -r linux-x64 --se
 Native libraries are included in the bundle; trimming is disabled to preserve
 Terminal.Gui and XML serializer reflection. Runtime discovery uses
 `AppContext.BaseDirectory`, so renamed single-file executables work correctly.
-Each project has its own version and release tags. Push **`pulsarconfig-vX.Y.Z`**
-to release only PulsarConfig (Linux), or **`magnetarconfig-vX.Y.Z`** to release
-only MagnetarConfig (Linux and Windows). The tag supplies that executable's
-version; update its project's `<Version>` for subsequent source builds. The
-workflow tests and publishes only the selected tool. Main/PR builds test both
-and upload artifacts without publishing releases. Stable releases use three
-numeric version components; prereleases are excluded from self-update.
+Each tool's **`Directory.Build.props`** defines its `<Version>`:
+
+- [`PulsarConfig/Directory.Build.props`](PulsarConfig/Directory.Build.props)
+- [`MagnetarConfig/Directory.Build.props`](MagnetarConfig/Directory.Build.props)
+
+Bump the relevant version and merge to `main`. CI evaluates the project through
+MSBuild, tests/publishes the executables, and creates `pulsarconfig-vX.Y.Z` or
+`magnetarconfig-vX.Y.Z` from that configured version. It retains an already
+complete release when the version has not changed; bump the version to ship
+changed binaries. Tags cannot override the version in the project properties.
+A matching tag on the current `main` commit can still trigger an individual tool
+release, or use **Run workflow → tool** on `main` to select either tool separately.
+PRs and manual runs on other branches produce `-dev` artifacts without publishing.
+
+CI maintains **at most one public release per tool**. It uploads the replacement
+as a draft and verifies every asset's SHA-256 digest before changing visibility.
+Previous releases for that tool become drafts; their assets and Git tags remain
+available to maintainers. The other tool's release is untouched. Publishing is
+serialized per tool, and stale builds cannot replace the current `main` release.
+If promotion fails, CI checks the actual remote state before restoring the
+previous public release. GitHub's visibility changes are separate API calls, so
+there is a brief interval with no public release during the switch.
+
+Stable versions use three numeric components (`X.Y.Z`); prereleases are excluded
+from self-update. The updater and compatibility bootstrap discover the remaining
+public release in each tool's tag stream.
 
 For the same single-file checks and update-helper smoke test locally:
 
