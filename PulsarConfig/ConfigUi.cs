@@ -18,6 +18,7 @@ internal static class ConfigUi
             TerminalTheme.Apply(
                 ThemePreference.Load(ThemePreference.FilePath, ThemeKind.Sandstone)
             );
+            using var pointer = new PointerHighlight();
             using var shell = new ConfigShell(options);
             using var startupUpdate = new StartupUpdateCheck(
                 shell,
@@ -116,12 +117,12 @@ internal sealed class ConfigShell : Toplevel
                 new[]
                 {
                     new StatusItem(Key.F1, "~F1~ Home", Dashboard),
-                    new StatusItem(Key.F7, "~F7~ Sources", () => Safe(Sources)),
                     new StatusItem(Key.F2, "~F2~ Theme", TerminalTheme.Choose),
                     new StatusItem(Key.F3, "~F3~ Plugins", () => Safe(Plugins)),
                     new StatusItem(Key.F4, "~F4~ Profiles", () => Safe(Profiles)),
                     new StatusItem(Key.F5, "~F5~ Start game", StartGame),
                     new StatusItem(Key.F6, "~F6~ Dev folders", () => Safe(DevFolders)),
+                    new StatusItem(Key.F7, "~F7~ Sources", () => Safe(Sources)),
                     new StatusItem(Key.F10, "~F10~ Quit", () => Application.RequestStop()),
                 }
             )

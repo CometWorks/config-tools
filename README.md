@@ -78,7 +78,10 @@ passive. Use **Tab / Shift+Tab** between controls and **Enter** to activate one;
 use arrow keys inside lists and menus. **F1** returns home, **F7** opens sources,
 **F9** activates/closes the menu bar, and the existing F2–F6/F10 shortcuts remain
 available. Lists show a selection marker; actions sit below the divider.
-Open forms and setup dialogs keep their own keyboard scope.
+Moving the mouse highlights buttons and list rows without changing keyboard
+focus or the selected item. Keyboard input restores keyboard highlighting;
+click or press Enter to activate an action. Open forms and setup dialogs keep
+their own keyboard scope.
 
 ## Appearance
 

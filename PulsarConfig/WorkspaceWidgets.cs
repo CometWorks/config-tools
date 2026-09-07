@@ -6,6 +6,8 @@ namespace Pulsar.Config;
 // Keep Button's keyboard, hotkey and mouse behavior; only its decoration changes.
 internal sealed class WorkspaceButton : Button
 {
+    private readonly ColorScheme drawingColors = new();
+
     public WorkspaceButton(string label)
         : base(label)
     {
@@ -27,8 +29,19 @@ internal sealed class WorkspaceButton : Button
     public override void Redraw(Rect bounds)
     {
         UpdateTextFormatterText();
+        bool highlight =
+            Enabled && (PointerHighlight.MouseActive ? PointerHighlight.IsOver(this) : HasFocus);
+        var theme = TerminalTheme.HomeAction;
+        drawingColors.Normal = highlight ? theme.Focus : theme.Normal;
+        drawingColors.Focus = highlight ? theme.Focus : theme.Normal;
+        drawingColors.HotNormal = drawingColors.HotFocus = highlight
+            ? theme.HotFocus
+            : theme.HotNormal;
+        drawingColors.Disabled = theme.Disabled;
+        if (ColorScheme != drawingColors)
+            ColorScheme = drawingColors;
         base.Redraw(bounds);
-        if (HasFocus && bounds.Height >= 3 && TerminalTheme.Current != ThemeKind.Turbo)
+        if (highlight && bounds.Height >= 3 && TerminalTheme.Current != ThemeKind.Turbo)
         {
             Driver.SetAttribute(TerminalTheme.Window.HotNormal);
             DrawFrame(bounds, 0, false);
@@ -67,15 +80,38 @@ internal sealed class WorkspaceDialog : Dialog
 // Rows reserve two leading cells so selection remains visible without a solid background.
 internal sealed class WorkspaceList : ListView
 {
-    public WorkspaceList() => ColorScheme = TerminalTheme.HomeAction;
+    public WorkspaceList()
+    {
+        ColorScheme = TerminalTheme.HomeAction;
+        RowRender += row =>
+        {
+            if (PointerHighlight.MouseActive)
+                row.RowAttribute =
+                    Enabled
+                    && PointerHighlight.IsOver(this)
+                    && row.Row == TopItem + PointerHighlight.Row(this)
+                        ? ColorScheme.Focus
+                        : GetNormalColor();
+        };
+    }
 
     public override void Redraw(Rect bounds)
     {
         base.Redraw(bounds);
-        int row = SelectedItem - TopItem;
-        if (Source?.Count > 0 && row >= 0 && row < bounds.Height)
+        int row = PointerHighlight.MouseActive
+            ? (PointerHighlight.IsOver(this) ? PointerHighlight.Row(this) : -1)
+            : SelectedItem - TopItem;
+        if (
+            Enabled
+            && Source?.Count > 0
+            && row >= 0
+            && row < bounds.Height
+            && TopItem + row < Source.Count
+        )
         {
-            Driver.SetAttribute(HasFocus ? ColorScheme.Focus : ColorScheme.HotNormal);
+            Driver.SetAttribute(
+                PointerHighlight.MouseActive || HasFocus ? ColorScheme.Focus : ColorScheme.HotNormal
+            );
             Move(0, row);
             Driver.AddRune('›');
         }
