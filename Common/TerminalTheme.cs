@@ -19,19 +19,19 @@ internal static class TerminalTheme
     public static Terminal.Gui.Attribute ReadyColor =>
         Current == ThemeKind.Turbo
             ? A(Color.Black, Color.Green)
-            : A(Color.BrightGreen, Color.DarkGray);
+            : A(Color.BrightGreen, Color.Black);
     public static Terminal.Gui.Attribute ExceptionColor =>
         Current == ThemeKind.Turbo
             ? A(Color.BrightYellow, Color.Red)
-            : A(Color.BrightRed, Color.DarkGray);
+            : A(Color.BrightRed, Color.Black);
 
-    public static void Apply(ThemeKind theme = ThemeKind.Muted)
+    public static void Apply(ThemeKind theme = ThemeKind.Sandstone)
     {
         Current = theme;
         if (theme == ThemeKind.Turbo)
             ApplyTurbo();
         else
-            ApplyMuted();
+            ApplyQuiet();
         Colors.Base = Window;
         Colors.Menu = Menu;
         Colors.Dialog = Dialog;
@@ -45,12 +45,22 @@ internal static class TerminalTheme
             "Theme",
             "Choose a theme for both tools on this machine.\nCurrent: " + Current,
             "Cancel",
-            "Muted",
+            "Graphite",
+            "Sandstone",
+            "Sage",
+            "Plum",
             "Turbo C"
         );
-        if (choice != 1 && choice != 2)
+        if (choice < 1 || choice > 5)
             return;
-        var theme = choice == 1 ? ThemeKind.Muted : ThemeKind.Turbo;
+        var theme = new[]
+        {
+            ThemeKind.Graphite,
+            ThemeKind.Sandstone,
+            ThemeKind.Sage,
+            ThemeKind.Plum,
+            ThemeKind.Turbo,
+        }[choice - 1];
         try
         {
             ThemePreference.Save(ThemePreference.FilePath, theme);
@@ -65,67 +75,25 @@ internal static class TerminalTheme
         Application.Top.SetNeedsDisplay();
     }
 
-    private static void ApplyMuted()
+    // Logical colour slots are translated to RGB/default background by PaletteConsole.
+    // Turbo bypasses that translation and retains the terminal's original 16-colour palette.
+    private static void ApplyQuiet()
     {
-        Set(
-            Window,
-            new ColorScheme
-            {
-                Normal = A(Color.White, Color.DarkGray),
-                Focus = A(Color.White, Color.Blue),
-                HotNormal = A(Color.BrightCyan, Color.DarkGray),
-                HotFocus = A(Color.White, Color.Blue),
-                Disabled = A(Color.Gray, Color.DarkGray),
-            }
-        );
-
-        Set(
-            Menu,
-            new ColorScheme
-            {
-                Normal = A(Color.Gray, Color.Black),
-                Focus = A(Color.White, Color.Blue),
-                HotNormal = A(Color.Cyan, Color.Black),
-                HotFocus = A(Color.White, Color.Blue),
-                Disabled = A(Color.DarkGray, Color.Black),
-            }
-        );
-
-        Set(
-            Dialog,
-            new ColorScheme
-            {
-                Normal = A(Color.White, Color.DarkGray),
-                Focus = A(Color.White, Color.Blue),
-                HotNormal = A(Color.BrightCyan, Color.DarkGray),
-                HotFocus = A(Color.White, Color.Blue),
-                Disabled = A(Color.Gray, Color.DarkGray),
-            }
-        );
-
-        Set(
-            Error,
-            new ColorScheme
-            {
-                Normal = A(Color.BrightRed, Color.DarkGray),
-                Focus = A(Color.White, Color.Blue),
-                HotNormal = A(Color.White, Color.DarkGray),
-                HotFocus = A(Color.White, Color.Blue),
-                Disabled = A(Color.Gray, Color.DarkGray),
-            }
-        );
-
-        Set(
-            Desktop,
-            new ColorScheme
-            {
-                Normal = A(Color.Gray, Color.Black),
-                Focus = A(Color.Gray, Color.Black),
-                HotNormal = A(Color.Gray, Color.Black),
-                HotFocus = A(Color.Gray, Color.Black),
-                Disabled = A(Color.DarkGray, Color.Black),
-            }
-        );
+        var quiet = new ColorScheme
+        {
+            Normal = A(Color.White, Color.Black),
+            Focus = A(Color.BrightYellow, Color.Black),
+            HotNormal = A(Color.Brown, Color.Black),
+            HotFocus = A(Color.BrightYellow, Color.Black),
+            Disabled = A(Color.DarkGray, Color.Black),
+        };
+        Set(Window, quiet);
+        Set(Menu, quiet);
+        Set(Dialog, quiet);
+        Set(Error, quiet);
+        Error.Normal = A(Color.BrightRed, Color.Black);
+        Set(Desktop, quiet);
+        Desktop.Normal = Desktop.Focus = A(Color.Gray, Color.Black);
     }
 
     private static void ApplyTurbo()

@@ -1,6 +1,6 @@
 # MagnetarConfig — user manual
 
-**MagnetarConfig** is a cross-platform terminal UI (Terminal.Gui, muted theme by default) that configures **and operates** one Space Engineers 1 Dedicated
+**MagnetarConfig** is a cross-platform terminal UI (Terminal.Gui, Sandstone theme by default) that configures **and operates** one Space Engineers 1 Dedicated
 Server instance running under Magnetar. From a single screen you edit the
 server's global config, each world's session settings and mod list, choose and
 create worlds, manage Magnetar plugins / sources / profiles, start and stop the
@@ -86,15 +86,14 @@ do not include this tool. It needs no separate
 .NET installation. Place it beside your Magnetar launcher for the existing
 defaults, or pass `-magnetar`, `-config`, and `-path` explicitly.
 
-The existing native terminal driver remains the default (ncurses/terminfo on
-Linux). Use `-netdriver` for the managed System.Console fallback, which uses
-standard `bash`/`stty` utilities on Linux.
+The managed System.Console driver is used on both platforms, with standard
+`bash`/`stty` utilities on Linux. The legacy `-netdriver` option remains accepted.
 
-Use **Tools → Theme** to switch between the original **Turbo C** appearance and
-**Muted**. Changes apply immediately, including desktop and log colors; current
+Use **Tools → Theme** to select **Sandstone**, **Graphite**, **Sage**, **Plum**,
+or the original **Turbo C** appearance. Changes apply immediately, including desktop and log colors; current
 views and edits remain in place. The choice is shared with PulsarConfig and
 saved in [machine-local user settings](../README.md#appearance), outside server
-instances and installation folders. With no saved preference, Magnetar defaults to muted.
+instances and installation folders. With no saved preference, Magnetar defaults to Sandstone.
 
 Run it from the install folder, next to the launcher. The bundle is
 portable: the tool finds the launcher and the Magnetar config dir relative to
@@ -131,8 +130,7 @@ MagnetarConfig [options]
   -ds64 <dir>        DedicatedServer64 folder (for world templates). Default:
                      auto-detected like Magnetar (Steam registry / library
                      folders / ~/.steam default path)
-  -netdriver         force Terminal.Gui's NetDriver (portable fallback when
-                     curses/terminfo is broken over e.g. exotic SSH terminals)
+  -netdriver         accepted for compatibility; the managed driver is now default
   -diag              print a headless read-only diagnostics report for the
                      resolved instance (paths, cfg summary, worlds, active
                      world, templates, plugins, sources, profiles, server
@@ -416,9 +414,9 @@ fallback.
   signal for a detached process, so the server can only be **force-killed** (with
   a data-loss warning), and there is no live config reload. When both launchers
   are installed you are asked which to configure ([§2](#2-running-magnetarconfig)).
-- The UI uses only the classic 16-color palette, so it renders the same over a
-  Linux terminal, Windows Terminal and legacy conhost. If a terminal misbehaves
-  (e.g. a broken terminfo over SSH), start with `-netdriver`.
+- Quiet themes use RGB text, the terminal default background, and bold/underlined
+  keyboard focus. Window shadows remain separate. Turbo C uses the original
+  16-color palette; terminal palette settings still control those colors.
 
 ---
 
@@ -447,7 +445,7 @@ work, see the
 ## Installing and updating Magnetar
 
 Open **File → Install / update / uninstall** from the existing tool, or start
-`MagnetarConfig --setup` before an instance exists. The muted/Turbo C preference
+`MagnetarConfig --setup` before an instance exists. The theme preference
 also applies to setup. The standalone tool installs the server package from
 **CometWorks/magnetar** releases; it does not download the dedicated-server game.
 The managed `.7z` reader is bundled, so an external 7-Zip installation is unnecessary.

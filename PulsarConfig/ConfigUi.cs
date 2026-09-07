@@ -10,11 +10,12 @@ internal static class ConfigUi
 {
     public static void Run(Options options)
     {
+        using var palette = PaletteConsole.Attach();
         Application.UseSystemConsole = true;
         Application.Init();
         try
         {
-            TerminalTheme.Apply(ThemePreference.Load(ThemePreference.FilePath, ThemeKind.Muted));
+            TerminalTheme.Apply(ThemePreference.Load(ThemePreference.FilePath, ThemeKind.Sandstone));
             using var shell = new ConfigShell(options);
             Application.Run(shell);
         }
@@ -156,6 +157,8 @@ internal sealed class ConfigShell : Toplevel
             Width = Dim.Fill(2),
             Height = Dim.Fill(4),
             ReadOnly = true,
+            // Home information is passive; keyboard focus belongs to the action buttons.
+            CanFocus = false,
             WordWrap = true,
             Text =
                 $"Space Engineers {(editor.Game == "se2" ? "2" : "1")}\n\nInstallation: {editor.Target}\nConfiguration: {editor.ConfigDir}\n\n"

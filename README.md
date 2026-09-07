@@ -1,16 +1,17 @@
 # CometWorks config tools
 
 Standalone terminal tools for Pulsar and Magnetar, built with .NET 10 and
-Terminal.Gui. Both offer muted slate and classic Turbo C / Turbo Vision themes.
+Terminal.Gui. Both offer Sandstone (default), Graphite, Sage, Plum, and classic Turbo C / Turbo Vision themes.
 
 ## Downloads
 
 Download from [Releases](https://github.com/CometWorks/config-tools/releases).
 Each tool is **one self-contained executable**, including .NET, Terminal.Gui,
 and their managed dependencies. No Python, NuGet, or separate .NET installation
-is needed to run the tools. Pulsar uses the managed console driver (standard
-bash/stty utilities on Linux). Magnetar keeps its existing native terminal
-driver; on Linux it uses ncurses/terminfo, with `-netdriver` as the managed fallback.
+is needed to run the tools. Both use the managed console driver (standard
+bash/stty utilities on Linux); no ncurses package is needed. The quieter themes
+use RGB text with the terminal’s default background, preserving transparency.
+Turbo C retains its original terminal-defined 16-color palette.
 
 | Tool | Release executable | Purpose |
 | --- | --- | --- |
@@ -62,7 +63,7 @@ are changed. Source/development builds must be rebuilt rather than self-updated.
 ## Appearance
 
 Use **F2 Theme** in PulsarConfig or **Tools → Theme** in MagnetarConfig to switch
-between **Muted** and **Turbo C** immediately. The selection is shared by both
+between **Sandstone**, **Graphite**, **Sage**, **Plum**, and **Turbo C** immediately. The selection is shared by both
 tools for your user account on this machine and survives tool updates:
 
 - Linux: `$XDG_CONFIG_HOME/CometWorks/config-tools/theme`, or
@@ -70,7 +71,8 @@ tools for your user account on this machine and survives tool updates:
 - Windows: `%LOCALAPPDATA%\CometWorks\config-tools\theme`.
 
 It is separate from game/server profiles and portable installation folders.
-With no saved preference, both tools default to muted. Other running tool windows pick up the choice on their
+With no saved preference, both tools default to **Sandstone**. An existing `muted`
+preference also selects Sandstone; an existing Turbo preference is preserved. Other running tool windows pick up the choice on their
 next launch. Removing this file restores the defaults.
 
 ## Tool guides

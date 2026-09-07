@@ -5,7 +5,10 @@ namespace CometWorks.ConfigTools;
 
 internal enum ThemeKind
 {
-    Muted,
+    Sandstone,
+    Graphite,
+    Sage,
+    Plum,
     Turbo,
 }
 
@@ -38,7 +41,10 @@ internal static class ThemePreference
         {
             return File.ReadAllText(path).Trim() switch
             {
-                "muted" => ThemeKind.Muted,
+                "muted" or "sandstone" => ThemeKind.Sandstone,
+                "graphite" => ThemeKind.Graphite,
+                "sage" => ThemeKind.Sage,
+                "plum" => ThemeKind.Plum,
                 "turbo" => ThemeKind.Turbo,
                 _ => fallback,
             };
@@ -55,7 +61,7 @@ internal static class ThemePreference
         string temp = path + "." + Path.GetRandomFileName();
         try
         {
-            File.WriteAllText(temp, theme == ThemeKind.Turbo ? "turbo\n" : "muted\n");
+            File.WriteAllText(temp, theme.ToString().ToLowerInvariant() + "\n");
             File.Move(temp, path, overwrite: true);
         }
         finally

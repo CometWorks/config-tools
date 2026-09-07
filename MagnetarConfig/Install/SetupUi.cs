@@ -16,11 +16,12 @@ internal static class SetupUi
     public static void Run(InstallOptions initial)
     {
         bool ownsApplication = Application.Driver is null;
+        using var palette = ownsApplication ? PaletteConsole.Attach() : null;
         if (ownsApplication)
         {
             Application.UseSystemConsole = true;
             Application.Init();
-            TerminalTheme.Apply(ThemePreference.Load(ThemePreference.FilePath, ThemeKind.Muted));
+            TerminalTheme.Apply(ThemePreference.Load(ThemePreference.FilePath, ThemeKind.Sandstone));
         }
         try
         {

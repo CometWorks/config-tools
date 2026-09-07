@@ -89,7 +89,7 @@ Usage: MagnetarConfig [options]
   -config <dir>    Magnetar config directory (config.xml, logs, magnetar.pid).
   -magnetar <file> Magnetar launcher executable to start/stop.
   -ds64 <dir>      DedicatedServer64 folder (for world templates).
-  -netdriver       Force Terminal.Gui's NetDriver (portable fallback).
+  -netdriver       Accepted for compatibility; managed driver is now default.
   -diag            Print a headless read-only instance report and exit.
   --check-update  Check for a newer MagnetarConfig release.
   --self-update   Update this tool executable (separate from Magnetar).

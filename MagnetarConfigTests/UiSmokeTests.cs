@@ -78,15 +78,15 @@ public class UiSmokeTests : IDisposable
             // proves the per-line colour overrides actually reached the screen. (The
             // production view builds the same attributes the same way.)
             int readyAttr = (turbo ? Terminal.Gui.Attribute.Make(Color.Black, Color.Green)
-                : Terminal.Gui.Attribute.Make(Color.BrightGreen, Color.DarkGray)).Value;
+                : Terminal.Gui.Attribute.Make(Color.BrightGreen, Color.Black)).Value;
             int exceptionAttr = (turbo ? Terminal.Gui.Attribute.Make(Color.BrightYellow, Color.Red)
-                : Terminal.Gui.Attribute.Make(Color.BrightRed, Color.DarkGray)).Value;
+                : Terminal.Gui.Attribute.Make(Color.BrightRed, Color.Black)).Value;
 
             Assert.True(BufferHasAttribute(driver, readyAttr),
                 "The 'Game ready' line was not rendered with its highlight colour.");
             Assert.True(BufferHasAttribute(driver, exceptionAttr),
                 "The 'Exception' line was not rendered with its highlight colour.");
-        }, turbo ? ThemeKind.Turbo : ThemeKind.Muted);
+        }, turbo ? ThemeKind.Turbo : ThemeKind.Sandstone);
     }
 
     [Fact]
@@ -105,9 +105,9 @@ public class UiSmokeTests : IDisposable
             Assert.Equal('▒', TerminalTheme.DesktopGlyph);
             Assert.Equal(Terminal.Gui.Attribute.Make(Color.Black, Color.Green), TerminalTheme.ReadyColor);
             Assert.Equal(Terminal.Gui.Attribute.Make(Color.BrightYellow, Color.Red), TerminalTheme.ExceptionColor);
-            TerminalTheme.Apply(ThemeKind.Muted);
+            TerminalTheme.Apply(ThemeKind.Sandstone);
             Assert.Same(scheme, text.ColorScheme);
-            Assert.Equal(Terminal.Gui.Attribute.Make(Color.White, Color.DarkGray), scheme.Normal);
+            Assert.Equal(Terminal.Gui.Attribute.Make(Color.White, Color.Black), scheme.Normal);
             Assert.Equal(' ', TerminalTheme.DesktopGlyph);
         });
     }
@@ -293,7 +293,7 @@ public class UiSmokeTests : IDisposable
 
     // Boots the shell, opens the log viewer, pumps a few iterations so it lays out and
     // draws, then runs the test body with the shell and driver; always tears down.
-    private void WithLogViewer(Action<AppShell, FakeDriver> body, ThemeKind theme = ThemeKind.Muted)
+    private void WithLogViewer(Action<AppShell, FakeDriver> body, ThemeKind theme = ThemeKind.Sandstone)
     {
         var driver = InitHeadless();
         TerminalTheme.Apply(theme);

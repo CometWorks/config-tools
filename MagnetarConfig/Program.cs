@@ -48,11 +48,12 @@ internal static class Program
             {
                 if (Console.IsInputRedirected || Console.IsOutputRedirected)
                     throw new InvalidOperationException("Setup needs a terminal. Use install/update/uninstall --yes for scripts.");
+                using var palette = PaletteConsole.Attach();
                 Application.UseSystemConsole = true;
                 try
                 {
                     Application.Init();
-                    TerminalTheme.Apply(ThemePreference.Load(ThemePreference.FilePath, ThemeKind.Muted));
+                    TerminalTheme.Apply(ThemePreference.Load(ThemePreference.FilePath, ThemeKind.Sandstone));
                     Install.SetupUi.Run(options);
                 }
                 finally { Application.Shutdown(); }
@@ -104,14 +105,15 @@ internal static class Program
             try { Console.OutputEncoding = Encoding.UTF8; } catch { }
         }
 
-        // NetDriver is a portable fallback when curses/terminfo is broken.
-        if (cli.NetDriver)
-            Application.UseSystemConsole = true;
+        // Use the same ANSI renderer on both platforms for RGB themes and the
+        // terminal default background. The legacy -netdriver option remains accepted.
+        using var palette = PaletteConsole.Attach();
+        Application.UseSystemConsole = true;
 
         try
         {
             Application.Init();
-            TerminalTheme.Apply(ThemePreference.Load(ThemePreference.FilePath, ThemeKind.Muted));
+            TerminalTheme.Apply(ThemePreference.Load(ThemePreference.FilePath, ThemeKind.Sandstone));
 
             InstanceBinding binding = cli.ToBinding();
 
