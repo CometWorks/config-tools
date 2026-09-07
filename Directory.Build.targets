@@ -1,0 +1,25 @@
+<Project>
+  <!-- Patch a private copy; never modify NuGet's shared package cache. -->
+  <Target Name="UsePatchedTerminalGui" AfterTargets="ResolveReferences" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <_TerminalGuiOriginal Include="@(ReferenceCopyLocalPaths)" Condition="'%(Filename)' == 'Terminal.Gui'" />
+    </ItemGroup>
+    <PropertyGroup>
+      <_TerminalGuiPatched>$(IntermediateOutputPath)patched/Terminal.Gui.dll</_TerminalGuiPatched>
+    </PropertyGroup>
+    <Exec Condition="'@(_TerminalGuiOriginal)' != ''"
+          Command="dotnet run --project &quot;$(MSBuildThisFileDirectory)Build/TerminalGuiPatch/TerminalGuiPatch.csproj&quot; --configuration $(Configuration) --no-launch-profile -- &quot;@(_TerminalGuiOriginal)&quot; &quot;$(_TerminalGuiPatched)&quot;" />
+    <ItemGroup Condition="'@(_TerminalGuiOriginal)' != ''">
+      <ReferencePath Remove="@(ReferencePath)" Condition="'%(Filename)' == 'Terminal.Gui'" />
+      <ReferencePath Include="$(_TerminalGuiPatched)" />
+      <ReferenceCopyLocalPaths Remove="@(_TerminalGuiOriginal)" />
+      <ReferenceCopyLocalPaths Include="$(_TerminalGuiPatched)" />
+    </ItemGroup>
+  </Target>
+  <Target Name="PublishPatchedTerminalGui" AfterTargets="ComputeResolvedFilesToPublishList" Condition="Exists('$(_TerminalGuiPatched)')">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Filename)' == 'Terminal.Gui'" />
+      <ResolvedFileToPublish Include="$(_TerminalGuiPatched)" RelativePath="Terminal.Gui.dll" CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+</Project>

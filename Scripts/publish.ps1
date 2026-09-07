@@ -33,6 +33,10 @@ if (($IsWindows -and $Rid -eq 'win-x64') -or ($IsLinux -and $Rid -eq 'linux-x64'
         if ($Tool -eq 'PulsarConfig') {
             python Scripts/test-bootstrap.py
             if ($LASTEXITCODE -ne 0) { throw 'Bootstrap smoke test failed' }
+            if ($IsLinux) {
+                python Scripts/test-terminal-input.py $dest
+                if ($LASTEXITCODE -ne 0) { throw 'Terminal input stress test failed' }
+            }
         }
         python Scripts/test-self-update.py $dest
         if ($LASTEXITCODE -ne 0) { throw "Self-update smoke test failed: $Tool" }

@@ -33,9 +33,19 @@ packages from **SpaceGT/Pulsar**, not from this repository.
 
 ## Updating the tools
 
-Both tools provide **Tools → Tool updates** to check for a newer stable release
-and **Update and close** to install it. Checks are explicit; opening the tool
-does not download or install updates automatically. For scripts:
+Each interactive launch checks GitHub in the background for a newer stable
+release of that specific tool. Startup stays usable; the check times out after
+eight seconds, and offline/rate-limit failures do not block the UI. If an update
+is available, a prompt offers **Later** (the default) or **Update…**. The prompt
+waits until an open menu or dialog has closed; Magnetar setup also waits for an
+active install operation to finish.
+
+Choose **Update…**, then **Update and close** to download and install it. Nothing
+is downloaded or replaced without that choice. **Later** keeps the current
+version; the next launch checks again. You can also use **Tools → Tool updates**
+at any time; that dialog checks automatically and reports connection failures.
+
+For scripts (these do not open the startup prompt):
 
 ```sh
 ./PulsarConfig-linux-x64.bin --check-update
@@ -59,6 +69,16 @@ The previous executable remains as `<executable>.previous`; the result is writte
 to `<executable>.update.log`. Restore the previous file with the tool closed if
 needed. No game/server files, launch arguments, profiles, or theme preferences
 are changed. Source/development builds must be rebuilt rather than self-updated.
+
+## Pulsar navigation
+
+The home page has buttons for starting the game, plugins, profiles, dev folders,
+sources, setup, and choosing an installation. Its path/launch information is
+passive. Use **Tab / Shift+Tab** between controls and **Enter** to activate one;
+use arrow keys inside lists and menus. **F1** returns home, **F7** opens sources,
+**F9** activates/closes the menu bar, and the existing F2–F6/F10 shortcuts remain
+available. Lists show a selection marker; actions sit below the divider.
+Open forms and setup dialogs keep their own keyboard scope.
 
 ## Appearance
 

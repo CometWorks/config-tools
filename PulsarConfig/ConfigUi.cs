@@ -15,8 +15,18 @@ internal static class ConfigUi
         Application.Init();
         try
         {
-            TerminalTheme.Apply(ThemePreference.Load(ThemePreference.FilePath, ThemeKind.Sandstone));
+            TerminalTheme.Apply(
+                ThemePreference.Load(ThemePreference.FilePath, ThemeKind.Sandstone)
+            );
             using var shell = new ConfigShell(options);
+            using var startupUpdate = new StartupUpdateCheck(
+                shell,
+                release =>
+                {
+                    if (SelfUpdateUi.Show(release))
+                        Application.RequestStop();
+                }
+            );
             Application.Run(shell);
         }
         finally
@@ -68,7 +78,7 @@ internal sealed class ConfigShell : Toplevel
                         "_Game",
                         new[]
                         {
-                            new MenuItem("_Overview", "", Dashboard),
+                            new MenuItem("_Home", "", Dashboard),
                             new MenuItem("_Start through Steam", "", StartGame),
                         }
                     ),
@@ -105,6 +115,8 @@ internal sealed class ConfigShell : Toplevel
             new StatusBar(
                 new[]
                 {
+                    new StatusItem(Key.F1, "~F1~ Home", Dashboard),
+                    new StatusItem(Key.F7, "~F7~ Sources", () => Safe(Sources)),
                     new StatusItem(Key.F2, "~F2~ Theme", TerminalTheme.Choose),
                     new StatusItem(Key.F3, "~F3~ Plugins", () => Safe(Plugins)),
                     new StatusItem(Key.F4, "~F4~ Profiles", () => Safe(Profiles)),
@@ -129,7 +141,7 @@ internal sealed class ConfigShell : Toplevel
         }
     }
 
-    private void Show(View view)
+    private void Show(View view, bool home = false)
     {
         if (panel is not null)
         {
@@ -137,10 +149,17 @@ internal sealed class ConfigShell : Toplevel
             panel.Dispose();
         }
         panel = view;
-        view.X = 1;
-        view.Y = 2;
-        view.Width = Dim.Fill(1);
-        view.Height = Dim.Fill(2);
+        view.X = Pos.Center();
+        view.Y = 3;
+        view.Width = Dim.Function(() => Math.Min(132, Application.Driver.Cols - 4));
+        view.Height = Dim.Function(() => Math.Min(34, Application.Driver.Rows - 7));
+        if (home)
+        {
+            view.X = Pos.Center();
+            view.Y = 3;
+            view.Width = Dim.Function(() => Math.Min(112, Application.Driver.Cols - 4));
+            view.Height = Dim.Function(() => Math.Min(31, Application.Driver.Rows - 7));
+        }
         Add(view);
         location.Text =
             $"{(editor.Game == "se2" ? "SE2" : "SE1")} · {editor.Target} · Config: {editor.ConfigDir}";
@@ -149,33 +168,114 @@ internal sealed class ConfigShell : Toplevel
 
     internal void Dashboard()
     {
-        var window = new Window("Pulsar") { ColorScheme = TerminalTheme.Window };
-        var text = new TextView
+        bool Spacious() => Application.Driver.Rows >= 38;
+        var window = new WorkspaceWindow("Pulsar") { ColorScheme = TerminalTheme.Window };
+        window.Border.Effect3D = true;
+        window.Add(
+            new Label($"Space Engineers {(editor.Game == "se2" ? "2" : "1")}")
+            {
+                X = 3,
+                Y = 1,
+                ColorScheme = TerminalTheme.Title,
+            }
+        );
+        window.Add(
+            new Label("Choose an action")
+            {
+                X = 3,
+                Y = 2,
+                ColorScheme = TerminalTheme.Desktop,
+            }
+        );
+        var actions = new (string Label, Action Run)[]
         {
-            X = 2,
-            Y = 1,
-            Width = Dim.Fill(2),
-            Height = Dim.Fill(4),
-            ReadOnly = true,
-            // Home information is passive; keyboard focus belongs to the action buttons.
-            CanFocus = false,
-            WordWrap = true,
-            Text =
-                $"Space Engineers {(editor.Game == "se2" ? "2" : "1")}\n\nInstallation: {editor.Target}\nConfiguration: {editor.ConfigDir}\n\n"
-                + $"Steam launch options:\n{editor.LaunchOptions}\n\n"
-                + "Start game uses Steam's existing launch options, including your extra arguments.\n"
-                + "The selected installation/configuration should match that Steam setup.\n\n"
-                + "Plugins: browse cached catalogs and enable plugins or local DLLs.\n"
-                + "Dev folders: select a manifest, register its folder, and enable it in the active profile.\n"
-                + "Sources: edit hubs, repositories, local catalogs, and Workshop sources.\n"
-                + "Profiles: save, load, update, rename, and delete plugin presets.\n\n"
-                + "For a -home launch or another custom config location, use File → Open installation.",
+            ("F5  _Start game", StartGame),
+            ("F3  _Plugins", () => Safe(Plugins)),
+            ("F4  P_rofiles", () => Safe(Profiles)),
+            ("F6  _Dev folders", () => Safe(DevFolders)),
+            ("F7  S_ources", () => Safe(Sources)),
+            ("    Setup / _update…", Setup),
         };
-        window.Add(text);
-        Button(window, "_Start game", 1, StartGame);
-        Button(window, "_Open installation…", 20, () => Safe(OpenInstallation));
-        Button(window, "_Setup / update…", 46, Setup);
-        Show(window);
+        for (int i = 0; i < actions.Length; i++)
+        {
+            int row = i;
+            var button = new WorkspaceButton(actions[i].Label)
+            {
+                X = 3,
+                Y = Pos.Function(() => (Spacious() ? 4 : 3) + row * (Spacious() ? 3 : 2)),
+                Width = 27,
+                Height = Dim.Function(() => Spacious() ? 3 : 1),
+            };
+            button.Clicked += actions[i].Run;
+            window.Add(button);
+        }
+        void Info(string title, string value, int index)
+        {
+            window.Add(
+                new Label(title)
+                {
+                    X = 35,
+                    Y = Pos.Function(() => (Spacious() ? 5 : 3) + index * (Spacious() ? 4 : 3)),
+                    ColorScheme = TerminalTheme.Desktop,
+                }
+            );
+            window.Add(
+                new Label
+                {
+                    X = 35,
+                    Y = Pos.Function(() => (Spacious() ? 6 : 4) + index * (Spacious() ? 4 : 3)),
+                    Width = Dim.Fill(3),
+                    Height = 2,
+                    Text = value,
+                }
+            );
+        }
+        Info("Installation", editor.Target, 0);
+        Info("Configuration", editor.ConfigDir, 1);
+        var launchCaption = new Label("Launch") { X = 35, ColorScheme = TerminalTheme.Desktop };
+        var launchSummary = new Label
+        {
+            X = 35,
+            Width = Dim.Fill(3),
+            Height = 3,
+        };
+        var open = new WorkspaceButton("Open _installation…")
+        {
+            X = 35,
+            Width = 30,
+            Height = 1,
+        };
+        open.Clicked += () => Safe(OpenInstallation);
+        var line = new LineView
+        {
+            X = 3,
+            Y = Pos.AnchorEnd(5),
+            Width = Dim.Fill(3),
+            ColorScheme = TerminalTheme.Border,
+        };
+        var launch = new Label
+        {
+            X = 3,
+            Y = Pos.AnchorEnd(4),
+            Width = Dim.Fill(3),
+            Height = 3,
+            Text = $"Steam launch options:\n{editor.LaunchOptions}",
+        };
+        window.Add(launchCaption, launchSummary, open, line, launch);
+        window.LayoutStarted += _ =>
+        {
+            launchCaption.Y = Spacious() ? 13 : 9;
+            launchCaption.Text = Spacious() ? "Launch" : "Steam launch options:";
+            launchSummary.Y = Spacious() ? 14 : 10;
+            string summary = Spacious()
+                ? "Through Steam · existing arguments"
+                : editor.LaunchOptions;
+            if (launchSummary.Text.ToString() != summary)
+                launchSummary.Text = summary;
+            open.Y = Spacious() ? 18 : 13;
+            line.Visible = launch.Visible = Spacious();
+        };
+        Show(window, home: true);
     }
 
     private void OpenInstallation()
@@ -247,29 +347,30 @@ internal sealed class ConfigShell : Toplevel
 
     internal void Plugins()
     {
-        var window = new Window("Plugins · Space/Enter toggles the active profile")
+        var window = new WorkspaceWindow("Plugins · Space/Enter toggles the active profile")
         {
             ColorScheme = TerminalTheme.Window,
         };
         var filter = new TextField("")
         {
-            X = 9,
-            Y = 0,
-            Width = Dim.Fill(1),
+            X = 12,
+            Y = 1,
+            Width = Dim.Fill(3),
         };
-        var list = new ListView
+        var list = new WorkspaceList
         {
-            X = 0,
-            Y = 2,
-            Width = Dim.Percent(48),
-            Height = Dim.Fill(2),
+            X = 3,
+            Y = 4,
+            Width = Dim.Percent(45),
+            Height = Dim.Fill(5),
         };
         var details = new TextView
         {
             X = Pos.Percent(49),
-            Y = 2,
-            Width = Dim.Fill(),
-            Height = Dim.Fill(2),
+            Y = 4,
+            Width = Dim.Fill(3),
+            Height = Dim.Fill(5),
+            ColorScheme = TerminalTheme.HomeAction,
             ReadOnly = true,
             WordWrap = true,
         };
@@ -295,7 +396,7 @@ internal sealed class ConfigShell : Toplevel
                 .ToList();
             int keep = list.SelectedItem;
             list.SetSource(
-                rows.Select(p => $"{(p.Enabled ? "[x]" : "[ ]")} {p.Name} · {p.Kind}").ToList()
+                rows.Select(p => $"  {(p.Enabled ? "[x]" : "[ ]")} {p.Name} · {p.Kind}").ToList()
             );
             if (rows.Count > 0)
                 list.SelectedItem = Math.Clamp(keep, 0, rows.Count - 1);
@@ -320,7 +421,32 @@ internal sealed class ConfigShell : Toplevel
                 args.Handled = true;
             }
         };
-        window.Add(new Label("Filter") { X = 1, Y = 0 }, filter, list, details);
+        window.Add(
+            new Label("Filter")
+            {
+                X = 3,
+                Y = 1,
+                ColorScheme = TerminalTheme.Desktop,
+            },
+            filter,
+            list,
+            details
+        );
+        window.Add(
+            new Label("Available plugins")
+            {
+                X = 3,
+                Y = 3,
+                ColorScheme = TerminalTheme.Title,
+            },
+            new Label("Details")
+            {
+                X = Pos.Percent(49),
+                Y = 3,
+                ColorScheme = TerminalTheme.Title,
+            }
+        );
+        ActionDivider(window);
         Button(window, "_Toggle", 0, Toggle);
         Button(window, "_Refresh", 14, () => Safe(Refresh));
         Refresh();
@@ -333,18 +459,18 @@ internal sealed class ConfigShell : Toplevel
 
     private void SourceScreen(bool devOnly)
     {
-        var window = new Window(
+        var window = new WorkspaceWindow(
             devOnly ? "Dev folders · registration and active profile" : "Plugin sources"
         )
         {
             ColorScheme = TerminalTheme.Window,
         };
-        var list = new ListView
+        var list = new WorkspaceList
         {
-            X = 0,
-            Y = 0,
-            Width = Dim.Fill(),
-            Height = Dim.Fill(4),
+            X = 3,
+            Y = 3,
+            Width = Dim.Fill(3),
+            Height = Dim.Fill(5),
         };
         var hint = new Label(
             devOnly
@@ -352,9 +478,22 @@ internal sealed class ConfigShell : Toplevel
                 : "Enter edits a source. Changes apply on the next game launch."
         )
         {
-            X = 0,
-            Y = Pos.AnchorEnd(3),
-            Width = Dim.Fill(),
+            X = 3,
+            Y = 1,
+            Width = Dim.Fill(3),
+            ColorScheme = TerminalTheme.Desktop,
+        };
+        var empty = new Label(
+            devOnly
+                ? "No dev folders registered. Choose Add to select a plugin manifest."
+                : "No sources registered. Choose Add to connect a plugin catalog or repository."
+        )
+        {
+            X = 3,
+            Y = 3,
+            Width = Dim.Fill(3),
+            Height = 2,
+            ColorScheme = TerminalTheme.Desktop,
         };
         List<SourceEntry> rows = [];
         void Refresh()
@@ -363,12 +502,13 @@ internal sealed class ConfigShell : Toplevel
                 .SourcesList()
                 .Where(s => devOnly ? s.Kind == "LocalPlugin" : s.Kind != "LocalPlugin")
                 .ToList();
+            empty.Visible = rows.Count == 0;
             int keep = list.SelectedItem;
             list.SetSource(
                 rows.Select(s =>
                         devOnly
-                            ? $"{(s.Enabled ? "[x]" : "[ ]")} {(editor.DevState(s.Id).Active ? "ACTIVE" : "off   ")} {s.Name} · {s.Key} [{s.Data.Element("File")?.Value}]"
-                            : $"{(s.Enabled ? "[x]" : "[ ]")} {s.Kind, -13} {s.Name} · {s.Key}"
+                            ? $"  {(s.Enabled ? "[x]" : "[ ]")} {(editor.DevState(s.Id).Active ? "ACTIVE" : "off   ")} {s.Name} · {s.Key} [{s.Data.Element("File")?.Value}]"
+                            : $"  {(s.Enabled ? "[x]" : "[ ]")} {s.Kind, -13} {s.Name} · {s.Key}"
                     )
                     .ToList()
             );
@@ -387,7 +527,8 @@ internal sealed class ConfigShell : Toplevel
                 Refresh();
             });
         list.OpenSelectedItem += _ => Edit();
-        window.Add(list, hint);
+        window.Add(list, hint, empty);
+        ActionDivider(window);
         Button(
             window,
             "_Add…",
@@ -506,22 +647,33 @@ internal sealed class ConfigShell : Toplevel
 
     internal void Profiles()
     {
-        var window = new Window("Plugin profiles · Current.xml is the active set")
+        var window = new WorkspaceWindow("Plugin profiles · Current.xml is the active set")
         {
             ColorScheme = TerminalTheme.Window,
         };
-        var list = new ListView
+        var list = new WorkspaceList
         {
-            X = 0,
-            Y = 0,
-            Width = Dim.Fill(),
-            Height = Dim.Fill(2),
+            X = 3,
+            Y = 3,
+            Width = Dim.Fill(3),
+            Height = Dim.Fill(5),
+        };
+        var empty = new Label(
+            "No saved profiles. Choose Save as to keep your current plugin selection."
+        )
+        {
+            X = 3,
+            Y = 3,
+            Width = Dim.Fill(3),
+            Height = 2,
+            ColorScheme = TerminalTheme.Desktop,
         };
         List<(string Key, string Name)> rows = [];
         void Refresh()
         {
             rows = editor.Profiles().ToList();
-            list.SetSource(rows.Select(p => p.Name).ToList());
+            empty.Visible = rows.Count == 0;
+            list.SetSource(rows.Select(p => "  " + p.Name).ToList());
         }
         string? Selected() =>
             list.SelectedItem >= 0 && list.SelectedItem < rows.Count
@@ -538,7 +690,18 @@ internal sealed class ConfigShell : Toplevel
                 status.Text = $"Loaded profile {key}. Takes effect on the next launch.";
             });
         list.OpenSelectedItem += _ => Load();
-        window.Add(list);
+        window.Add(
+            list,
+            new Label("Enter loads a profile. Save as captures your current plugin selection.")
+            {
+                X = 3,
+                Y = 1,
+                Width = Dim.Fill(3),
+                ColorScheme = TerminalTheme.Desktop,
+            }
+        );
+        window.Add(empty);
+        ActionDivider(window);
         Button(window, "_Load", 0, Load);
         Button(
             window,
@@ -616,10 +779,26 @@ internal sealed class ConfigShell : Toplevel
 
     private static void Button(View parent, string text, int x, Action action)
     {
-        var button = new Button(text) { X = x, Y = Pos.AnchorEnd(1) };
+        var button = new WorkspaceButton(text)
+        {
+            X = x + 3,
+            Y = Pos.AnchorEnd(3),
+            Height = 3,
+        };
         button.Clicked += action;
         parent.Add(button);
     }
+
+    private static void ActionDivider(View parent) =>
+        parent.Add(
+            new LineView
+            {
+                X = 3,
+                Y = Pos.AnchorEnd(4),
+                Width = Dim.Fill(3),
+                ColorScheme = TerminalTheme.Border,
+            }
+        );
 
     private static Dictionary<string, string>? Form(
         string title,
@@ -627,9 +806,15 @@ internal sealed class ConfigShell : Toplevel
     )
     {
         var items = fields.ToList();
-        var cancel = new Button("Cancel");
-        var save = new Button("Save", true);
-        using var dialog = new Dialog(title, 86, items.Count * 2 + 5, cancel, save)
+        var cancel = new WorkspaceButton("Cancel");
+        var save = new WorkspaceButton("Save") { IsDefault = true };
+        using var dialog = new WorkspaceDialog(
+            title,
+            Math.Min(96, Application.Driver.Cols - 4),
+            items.Count * 2 + 7,
+            cancel,
+            save
+        )
         {
             ColorScheme = TerminalTheme.Dialog,
         };
@@ -637,12 +822,19 @@ internal sealed class ConfigShell : Toplevel
         for (int i = 0; i < items.Count; i++)
         {
             var (name, value) = items[i];
-            dialog.Add(new Label(name) { X = 1, Y = i * 2 + 1 });
+            dialog.Add(
+                new Label(name)
+                {
+                    X = 3,
+                    Y = i * 2 + 2,
+                    ColorScheme = TerminalTheme.Desktop,
+                }
+            );
             View input = name is "Enabled" or "Trusted" or "Active profile" or "Debug build"
                 ? new CheckBox("") { Checked = value is "true" or "1" }
-                : new TextField(value) { Width = Dim.Fill(2) };
-            input.X = 22;
-            input.Y = i * 2 + 1;
+                : new TextField(value) { Width = Dim.Fill(3) };
+            input.X = 24;
+            input.Y = i * 2 + 2;
             inputs.Add(name, input);
             dialog.Add(input);
         }

@@ -13,7 +13,7 @@ internal static class SetupUi
     public static void Run(string? target = null, string? ds64 = null)
         => Run(new InstallOptions { Target = target ?? InstallOptions.DefaultTarget(), Ds64 = ds64 });
 
-    public static void Run(InstallOptions initial)
+    public static void Run(InstallOptions initial, bool checkUpdates = false)
     {
         bool ownsApplication = Application.Driver is null;
         using var palette = ownsApplication ? PaletteConsole.Attach() : null;
@@ -46,6 +46,12 @@ internal static class SetupUi
             var lines = new List<string>();
             var controls = new List<View> { targetField, version, archive, checksum, dedicated, dependencies };
             bool busy = false;
+            using var startupUpdate = checkUpdates || ownsApplication
+                ? new StartupUpdateCheck(dialog, release =>
+                {
+                    if (SelfUpdateUi.Show(release)) Application.RequestStop();
+                }, canPrompt: () => !busy)
+                : null;
             CancellationTokenSource? cancellation = null;
             void Append(string message)
             {

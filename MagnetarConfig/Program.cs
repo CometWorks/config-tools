@@ -54,7 +54,7 @@ internal static class Program
                 {
                     Application.Init();
                     TerminalTheme.Apply(ThemePreference.Load(ThemePreference.FilePath, ThemeKind.Sandstone));
-                    Install.SetupUi.Run(options);
+                    Install.SetupUi.Run(options, checkUpdates: true);
                 }
                 finally { Application.Shutdown(); }
             }
@@ -147,6 +147,7 @@ internal static class Program
             }
 
             var shell = new AppShell(binding);
+            using var startupUpdate = new StartupUpdateCheck(shell, shell.ToolUpdates);
             Application.Run(shell);
         }
         catch (Exception e)

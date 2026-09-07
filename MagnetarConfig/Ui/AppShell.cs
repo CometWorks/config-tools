@@ -74,6 +74,17 @@ internal sealed class AppShell : Toplevel
     public ProcessMonitor Monitor => monitor;
     public AtomicFile Writer => writer;
 
+    internal void ToolUpdates(ToolRelease available = null)
+    {
+        (content as IAutoSaveContent)?.FlushPendingSave();
+        if (content is IAutoSaveContent auto && auto.InvalidFields.Count > 0)
+        {
+            Dialogs.Error("Tool update", "Correct the invalid fields before updating the tool.");
+            return;
+        }
+        if (SelfUpdateUi.Show(available)) Application.RequestStop();
+    }
+
     private MenuBar BuildMenu()
     {
         return new MenuBar(new[]
@@ -115,16 +126,7 @@ internal sealed class AppShell : Toplevel
                 new MenuItem("_Logs", "", ShowLogs),
                 new MenuItem("_Dashboard", "", ShowDashboard),
                 new MenuItem("_Theme…", "", TerminalTheme.Choose),
-                new MenuItem("Tool _updates…", "", () =>
-                {
-                    (content as IAutoSaveContent)?.FlushPendingSave();
-                    if (content is IAutoSaveContent auto && auto.InvalidFields.Count > 0)
-                    {
-                        Dialogs.Error("Tool update", "Correct the invalid fields before restarting the tool.");
-                        return;
-                    }
-                    if (SelfUpdateUi.Show()) Application.RequestStop();
-                }),
+                new MenuItem("Tool _updates…", "", () => ToolUpdates()),
             }),
             new MenuBarItem("_Help", new[]
             {

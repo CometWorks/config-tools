@@ -378,7 +378,7 @@ public sealed class PluginEditorTests : IDisposable
                 bool wait = false;
                 Terminal.Gui.Application.RunMainLoopIteration(ref state, false, ref wait);
             }
-            Assert.IsType<Terminal.Gui.Button>(shell.MostFocused);
+            Assert.IsAssignableFrom<Terminal.Gui.Button>(shell.MostFocused);
             Terminal.Gui.Application.End(state);
             Assert.False(File.Exists(Editor.SourcesPath));
             Assert.False(File.Exists(Editor.CurrentPath));

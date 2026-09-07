@@ -9,38 +9,37 @@ namespace CometWorks.ConfigTools;
 internal static class SelfUpdateUi
 {
     /// <returns>True when the caller must close its application so the helper can update it.</returns>
-    public static bool Show()
+    public static bool Show(ToolRelease? available = null)
     {
         bool prepared = false,
             busy = false;
-        ToolRelease? release = null;
+        ToolRelease? release = available;
         using var cancel = new CancellationTokenSource();
         using var dialog = new Dialog("Update " + SelfUpdate.Tool)
         {
             Width = Dim.Percent(85),
-            Height = 12,
+            Height = 14,
             ColorScheme = TerminalTheme.Window,
         };
-        var message = new TextView
+        var message = new Label
         {
             X = 1,
             Y = 1,
             Width = Dim.Fill(1),
             Height = Dim.Fill(3),
-            ReadOnly = true,
-            WordWrap = true,
-            Text =
-                $"Installed: {SelfUpdate.VersionText}\nCheck for a newer stable {SelfUpdate.Tool} release. Only this tool's executable is updated.",
+            Text = available is null ? "Checking releases…" : Describe(available),
         };
-        var check = new Button("Check") { IsDefault = true };
-        var update = new Button("Update and close") { Enabled = false };
-        var close = new Button("Close");
+        var check = new Button("Check again");
+        var update = new Button("Update and close") { Enabled = available != null };
+        var close = new Button("Later") { IsDefault = true };
+        bool closing = false;
         dialog.Add(message);
-        dialog.AddButton(check);
-        dialog.AddButton(update);
         dialog.AddButton(close);
+        dialog.AddButton(update);
+        dialog.AddButton(check);
         close.Clicked += () =>
         {
+            closing = true;
             cancel.Cancel();
             if (!busy)
                 Application.RequestStop();
@@ -49,6 +48,7 @@ internal static class SelfUpdateUi
         {
             if (busy)
             {
+                closing = true;
                 cancel.Cancel();
                 args.Cancel = true;
             }
@@ -72,14 +72,14 @@ internal static class SelfUpdateUi
                 Application.MainLoop.Invoke(() =>
                 {
                     busy = false;
-                    if (prepared)
+                    if (prepared || closing)
                         Application.RequestStop();
                     else
                     {
                         message.Text =
                             release == null
                                 ? $"{SelfUpdate.Tool} {SelfUpdate.VersionText} is up to date."
-                                : $"Installed: {SelfUpdate.VersionText}\nAvailable: {release.Tag}\n\nUpdate verifies SHA-256, keeps the previous executable, and closes this tool to replace it. Reopen it with your usual command after the update. Close other windows of this tool first.";
+                                : Describe(release);
                         check.Enabled = true;
                         update.Enabled = release != null;
                     }
@@ -90,6 +90,11 @@ internal static class SelfUpdateUi
                 Application.MainLoop.Invoke(() =>
                 {
                     busy = false;
+                    if (closing)
+                    {
+                        Application.RequestStop();
+                        return;
+                    }
                     message.Text =
                         error is OperationCanceledException
                             ? "Update cancelled. Close this dialog to try again."
@@ -101,7 +106,12 @@ internal static class SelfUpdateUi
         }
         check.Clicked += () => Run(false);
         update.Clicked += () => Run(true);
+        if (available is null)
+            dialog.Ready += () => Run(false);
         Application.Run(dialog);
         return prepared;
     }
+
+    private static string Describe(ToolRelease release) =>
+        $"Installed: {SelfUpdate.VersionText}\nAvailable: {release.Tag}\n\nUpdate verifies the download, keeps the previous executable as a backup, and closes this tool to replace it. Reopen it with your usual command afterwards. Close other windows of this tool first.";
 }

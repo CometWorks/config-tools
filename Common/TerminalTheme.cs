@@ -9,6 +9,9 @@ internal static class TerminalTheme
     public static ColorScheme Menu { get; private set; } = new();
     public static ColorScheme Dialog { get; private set; } = new();
     public static ColorScheme Error { get; private set; } = new();
+    public static ColorScheme Border { get; } = new();
+    public static ColorScheme Title { get; } = new();
+    public static ColorScheme HomeAction { get; } = new();
     public static ColorScheme Desktop { get; private set; } = new();
 
     private static Terminal.Gui.Attribute A(Color fg, Color bg) =>
@@ -32,6 +35,15 @@ internal static class TerminalTheme
             ApplyTurbo();
         else
             ApplyQuiet();
+        Set(Border, Window);
+        Set(Title, Window);
+        Set(HomeAction, Window);
+        if (theme != ThemeKind.Turbo)
+        {
+            Border.Normal = A(Color.Blue, Color.Black);
+            Title.Normal = A(Color.BrightCyan, Color.Black);
+            HomeAction.Focus = HomeAction.HotFocus = A(Color.BrightMagenta, Color.Black);
+        }
         Colors.Base = Window;
         Colors.Menu = Menu;
         Colors.Dialog = Dialog;

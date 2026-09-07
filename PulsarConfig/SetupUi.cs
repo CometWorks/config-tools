@@ -7,31 +7,45 @@ internal static class SetupUi
 {
     public static void Run(Options options)
     {
-        using var top = new Dialog("Pulsar · Linux setup")
+        using var top = new WorkspaceDialog("Pulsar · Linux setup")
         {
-            Width = Dim.Fill(),
-            Height = Dim.Fill(),
+            Width = Dim.Function(() => Math.Min(132, Application.Driver.Cols - 2)),
+            Height = Dim.Function(() => Math.Min(36, Application.Driver.Rows - 2)),
             ColorScheme = TerminalTheme.Window,
         };
         {
             var window = top;
             TextField Field(int row, string label, string value)
             {
-                window.Add(new Label(label) { X = 1, Y = row });
+                window.Add(
+                    new Label(label)
+                    {
+                        X = 3,
+                        Y = row,
+                        ColorScheme = TerminalTheme.Desktop,
+                    }
+                );
                 var field = new TextField(value)
                 {
-                    X = 16,
+                    X = 18,
                     Y = row,
-                    Width = Dim.Fill(2),
+                    Width = Dim.Fill(3),
                 };
                 window.Add(field);
                 return field;
             }
             var target = Field(1, "Installation", options.Target);
-            window.Add(new Label("Game") { X = 1, Y = 3 });
+            window.Add(
+                new Label("Game")
+                {
+                    X = 3,
+                    Y = 3,
+                    ColorScheme = TerminalTheme.Desktop,
+                }
+            );
             var game = new RadioGroup(["Auto", "SE1", "SE2"])
             {
-                X = 16,
+                X = 18,
                 Y = 3,
                 DisplayMode = DisplayModeLayout.Horizontal,
                 SelectedItem = Array.IndexOf(new[] { "auto", "se1", "se2" }, options.Game),
@@ -45,20 +59,38 @@ internal static class SetupUi
                     "Game: auto / se1 / se2 · Old install/settings are used only for migration."
                 )
                 {
-                    X = 1,
+                    X = 3,
                     Y = 11,
+                    Width = Dim.Fill(3),
+                    ColorScheme = TerminalTheme.Desktop,
                 }
             );
             var log = new TextView
             {
-                X = 1,
-                Y = 15,
-                Width = Dim.Fill(2),
+                X = 3,
+                Y = 18,
+                Width = Dim.Fill(3),
                 Height = Dim.Fill(1),
                 ReadOnly = true,
                 WordWrap = true,
+                ColorScheme = TerminalTheme.HomeAction,
             };
-            window.Add(log);
+            window.Add(
+                log,
+                new Label("Activity")
+                {
+                    X = 3,
+                    Y = 17,
+                    ColorScheme = TerminalTheme.Title,
+                },
+                new LineView
+                {
+                    X = 3,
+                    Y = 16,
+                    Width = Dim.Fill(3),
+                    ColorScheme = TerminalTheme.Border,
+                }
+            );
             var lines = new List<string>();
             bool busy = false;
             CancellationTokenSource? cancellation = null;
@@ -72,6 +104,7 @@ internal static class SetupUi
                 log.Text = string.Join('\n', lines);
                 log.CursorPosition = new Point(0, Math.Max(0, log.Lines - 1));
             }
+            WorkspaceButton? cancel = null;
             async void Start(string action)
             {
                 if (busy)
@@ -101,6 +134,7 @@ internal static class SetupUi
                 )
                     return;
                 busy = true;
+                cancel!.Enabled = true;
                 foreach (var control in controls)
                     control.Enabled = false;
                 cancellation = new CancellationTokenSource();
@@ -130,6 +164,7 @@ internal static class SetupUi
                     Application.MainLoop.Invoke(() =>
                     {
                         busy = false;
+                        cancel!.Enabled = false;
                         cancellation.Dispose();
                         cancellation = null;
                         foreach (var control in controls)
@@ -137,27 +172,38 @@ internal static class SetupUi
                     });
                 }
             }
-            int column = 1;
+            int column = 3;
             foreach (string action in new[] { "install", "update", "migrate", "uninstall" })
             {
-                var button = new Button(char.ToUpperInvariant(action[0]) + action[1..])
+                var button = new WorkspaceButton(char.ToUpperInvariant(action[0]) + action[1..])
                 {
                     X = column,
                     Y = 13,
+                    Height = 3,
                 };
                 button.Clicked += () => Start(action);
                 window.Add(button);
                 controls.Add(button);
-                column += action.Length + 5;
+                column += action.Length + 6;
             }
-            var check = new Button("Check prerequisites") { X = 1, Y = 12 };
+            var check = new WorkspaceButton("Check prerequisites") { X = 3, Y = 12 };
             check.Clicked += () => Start("check");
             window.Add(check);
             controls.Add(check);
-            var cancel = new Button("Cancel task") { X = column, Y = 13 };
+            cancel = new WorkspaceButton("Cancel task")
+            {
+                X = Pos.Right(check) + 2,
+                Y = 12,
+                Enabled = false,
+            };
             cancel.Clicked += () => cancellation?.Cancel();
             window.Add(cancel);
-            var quit = new Button("Back") { X = Pos.Right(cancel) + 1, Y = 13 };
+            var quit = new WorkspaceButton("Back")
+            {
+                X = column,
+                Y = 13,
+                Height = 3,
+            };
             quit.Clicked += () =>
             {
                 if (!busy)

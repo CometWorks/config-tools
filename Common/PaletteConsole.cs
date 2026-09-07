@@ -32,12 +32,12 @@ internal sealed class PaletteConsole : TextWriter
     {
         if (theme == ThemeKind.Turbo)
             return text;
-        var (normal, muted, accent) = theme switch
+        var (normal, muted, accent, border) = theme switch
         {
-            ThemeKind.Graphite => ("227;229;227", "147;155;153", "184;195;189"),
-            ThemeKind.Sage => ("224;231;223", "160;178;159", "181;200;165"),
-            ThemeKind.Plum => ("232;223;233", "179;160;183", "197;171;201"),
-            _ => ("232;222;207", "178;163;143", "209;183;144"),
+            ThemeKind.Graphite => ("227;229;227", "147;155;153", "184;195;189", "68;76;74"),
+            ThemeKind.Sage => ("224;231;223", "160;178;159", "181;200;165", "70;87;74"),
+            ThemeKind.Plum => ("232;223;233", "179;160;183", "197;171;201", "86;68;91"),
+            _ => ("232;222;207", "178;163;143", "209;183;144", "87;75;60"),
         };
         return Attribute.Replace(
             text,
@@ -47,7 +47,8 @@ internal sealed class PaletteConsole : TextWriter
                 string rgb = foreground switch
                 {
                     "37" or "90" => muted,
-                    "33" or "93" => accent,
+                    "33" or "93" or "95" => accent,
+                    "34" => border,
                     "91" => "224;145;137",
                     "92" => "170;196;150",
                     _ => normal,
@@ -55,7 +56,12 @@ internal sealed class PaletteConsole : TextWriter
                 // SGR 49 uses the terminal's configured background (including transparency).
                 // Terminal.Gui's default 3D shadow uses bright-black background, kept black.
                 string background = match.Groups[1].Value == "100" ? "48;2;0;0;0" : "49";
-                string emphasis = foreground == "93" ? "1;4" : "22;24";
+                string emphasis = foreground switch
+                {
+                    "93" => "1;4",
+                    "95" or "96" => "1;24",
+                    _ => "22;24",
+                };
                 return $"\x1b[{emphasis};{background};38;2;{rgb}m";
             }
         );
