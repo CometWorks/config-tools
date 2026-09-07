@@ -170,12 +170,25 @@ public sealed class InstallerTests : IDisposable
     public async Task Running_native_server_blocks_update()
     {
         await installer.Run("install");
-        string source = OperatingSystem.IsWindows() ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "cmd.exe") : "/bin/sleep";
+        string source = OperatingSystem.IsWindows() ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "ping.exe") : "/bin/sleep";
         string executable = Path.Combine(options.Target, OperatingSystem.IsWindows() ? "running-test.exe" : "MagnetarInterim.bin");
         File.Copy(source, executable, true);
-        using var process = System.Diagnostics.Process.Start(new ProcessStartInfo(executable, OperatingSystem.IsWindows() ? "/c ping -n 30 127.0.0.1 > nul" : "30") { UseShellExecute = false })!;
+        using var process = System.Diagnostics.Process.Start(new ProcessStartInfo(executable, OperatingSystem.IsWindows() ? "-n 30 127.0.0.1" : "30") { UseShellExecute = false })!;
         try { await Assert.ThrowsAsync<InstallError>(() => installer.Run("update")); }
-        finally { process.Kill(true); await process.WaitForExitAsync(); }
+        finally
+        {
+            process.Kill(true);
+            await process.WaitForExitAsync();
+            // Windows can retain the image mapping briefly after the process exits.
+            // Retry only this terminated fixture's executable; never ignore cleanup failure.
+            for (int attempt = 0; ; attempt++)
+            {
+                try { File.Delete(executable); break; }
+                catch (Exception error) when (OperatingSystem.IsWindows() && attempt < 50
+                    && error is IOException or UnauthorizedAccessException)
+                { await Task.Delay(100); }
+            }
+        }
     }
 
     [Fact]

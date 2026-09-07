@@ -50,21 +50,26 @@ with tempfile.TemporaryDirectory(prefix='config-tools-input-') as directory:
         end = time.monotonic() + 10
         while text.encode() not in output and time.monotonic() < end:
             pump()
-        assert text.encode() in output, f'Input stopped responding: expected {text!r}'
+        assert text.encode() in output, (f'Input stopped responding: expected {text!r}\n' + repr(bytes(output[-12000:])))
         output.clear()
 
     try:
         expect('Start game')
+        send('\x1b[18~')
+        expect('Plugin sources')
+        send('\x1bOP')
+        expect('Steam launch options:')
         for iteration in range(12):
             # Click Tools, then rapidly move across open menu headings. No menu action
             # installs, edits configuration, or launches Steam in this test.
             send('\x1b[<0;23;1M\x1b[<0;23;1m')
             # Drain output between bursts, as a real terminal does, rather than
             # overrun the PTY's bounded input buffer with one giant write.
-            for batch in range(10):
-                send(''.join(f'\x1b[<35;{2 + (batch * 40 + i) % 25};1M' for i in range(40)))
+            for batch in range(20):
+                send(''.join(f'\x1b[<35;{2 + (batch * 20 + i) % 25};1M' for i in range(20)))
+            pump(1)  # Let queued menu moves settle before targeting the closing click.
             send('\x1b[<0;100;20M\x1b[<0;100;20m')  # Click passive space to close any open menu
-            pump(.15)
+            pump(.5)
             send('\x1b[18~')  # F7: Sources
             expect('Plugin sources')
             send('\x1bOP')    # F1: Home
