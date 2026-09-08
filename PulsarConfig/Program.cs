@@ -5,9 +5,7 @@ namespace Pulsar.Config;
 internal sealed class Options
 {
     public string? Action,
-        Source,
         Config,
-        Settings,
         Archive,
         Sha256;
     public string Target =
@@ -19,6 +17,7 @@ internal sealed class Options
         );
     public string Version = "latest",
         Game = "auto";
+    public bool TargetSpecified = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("PULSAR_DATA_DIR"));
     public bool Yes,
         Help;
 
@@ -40,22 +39,16 @@ internal sealed class Options
             {
                 case "install"
                 or "update"
-                or "migrate"
                 or "uninstall"
                 or "check" when options.Action is null:
                     options.Action = arg;
                     break;
                 case "--target":
                     options.Target = Value();
+                    options.TargetSpecified = true;
                     break;
                 case "--config":
                     options.Config = Value();
-                    break;
-                case "--source":
-                    options.Source = Value();
-                    break;
-                case "--settings":
-                    options.Settings = Value();
                     break;
                 case "--archive":
                     options.Archive = Value();
@@ -102,13 +95,11 @@ internal static class Program
                 Console.WriteLine(
                     """
                     Pulsar configuration — omit the action to open the terminal UI.
-                    PulsarConfig [install|update|migrate|uninstall|check] [options]
+                    PulsarConfig [install|update|uninstall|check] [options]
 
                     --target DIR     Installation folder
                     --game GAME      auto (saved choice), se1 or se2
                     --config DIR     Active configuration (default: TARGET/Legacy or Modern)
-                    --source DIR     Old native installation (migration; default: target)
-                    --settings DIR   Old configuration (default: XDG_CONFIG_HOME/Pulsar)
                     --version TAG    Pulsar release tag, or latest
                     --archive FILE   Use a local release .zip or .tar.gz
                     --sha256 HEX     Expected checksum for a local archive

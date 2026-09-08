@@ -36,8 +36,8 @@ options already configured in Steam.
 **Manage Pulsar** on the home screen opens the installation form described below.
 Tab moves between fields and buttons; Enter activates the selected action.
 Installation sets the target folder; Release accepts `latest` or a tag such as
-`v2.4.1`; Game accepts `auto`, `se1`, or `se2`. Old install/settings are used for
-migration. Each operation asks for confirmation and displays a progress log.
+`v2.4.1`; Game accepts `auto`, `se1`, or `se2`. Each operation asks for
+confirmation and displays a progress log.
 Cancel task stops downloads/preparation before the installation is switched.
 Run as your normal Steam user, without sudo.
 
@@ -131,7 +131,7 @@ from Pulsar package updates; see the [update and recovery details](../README.md#
 Setup's **Check prerequisites** button and `PulsarConfig check --game se1` report
 .NET 10 and Steam/game discovery, plus .NET Framework on Windows or
 Vulkan/Opus, display libraries and optional audio on Linux.
-Install, update and migration also run these checks before downloading. They are
+Install and update also run these checks before downloading. They are
 advisory: Steam containers can supply libraries absent on the host, and installation
 can precede runtime setup. File/path validation, writable staging, checksums and
 running-process checks remain mandatory. Uninstall does not require game runtimes.
@@ -196,38 +196,29 @@ through Steam (SE1: 244850; SE2: 1133870), so configure its launch option first.
 Setup does not add a launch wrapper, set overlay variables, or force X11/Wayland.
 The normal unified Pulsar and Steam launch paths remain responsible for those.
 
-## Migrate LinuxCompat 1.0.x
+## Existing installations
 
-This migrates the old **SE1** layout and profiles; it is not an SE2 profile
-converter. The resulting unified installation also supports SE2.
+On startup without an explicit `--target` or `--config`, choose an installation
+from the picker. It checks the tool directory, working directory, data-home
+location, installer receipts, and remembered selections. Manually unpacked
+current releases are recognized by their program files; no receipt is required.
+`PULSAR_DATA_DIR` and explicit command-line paths retain precedence.
 
-For the native 1.0.16 release, the old defaults are:
+Use **Choose installation** from the dashboard or setup to switch folders.
+**Browse** selects an arbitrary installation; **Search folder** scans a selected
+parent (up to four levels and 2,000 directories, skipping hidden child folders
+and directory links). Back cancels a search. **Refresh** checks the known paths
+again. To install somewhere new, enter its full folder path and choose
+**Install new**. Successful selections are remembered in per-user tool settings.
 
-- Binaries: `~/.local/share/Pulsar` (`Interim` shell wrapper and `Bin/Interim`).
-- Settings: `~/.config/Pulsar`; `~/.local/config/Pulsar` is also detected.
-  `XDG_CONFIG_HOME`, `PULSAR_DIR`, or `--settings` can override this.
+Setup shows the detected status and enables applicable actions. All action
+buttons occupy three rows, with matching mouse and keyboard highlight areas.
+Tab/Shift-Tab follow the form; fields scroll into view on smaller terminals.
 
-Migrate replaces the old binary layout and copies `config.xml`, `Profiles`,
-`Local`, and source configuration into the new installation's `Legacy` folder.
-It does not overwrite an existing destination profile/configuration. Old
-PluginHub, preloader, compiler, and native-library caches are not migrated;
-Pulsar downloads current metadata and rebuilds plugins on first launch.
-
-Migration converts legacy core-plugin IDs to the unified equivalents. It also
-moves developer-folder `DataFile` declarations from profiles to the source's
-`File` field and reads plugin IDs from their manifests. Incompatible old core
-developer sources are disabled so current core plugins can load. Developer
-sources without a recorded manifest are reported for review.
-
-The original settings remain available for rollback. When the destination is
-different, old program files remain at the source too; remove them after
-checking the migrated installation. The old release's owned menu icons are
-backed up and removed when its shortcut is replaced. Flatpak application and
-Steam compatibility-tool migration are not supported by this native installer.
-
-After migration, replace the old `Interim` wrapper path in Steam launch options
-with the displayed `Interim.bin` path. No old environment-setting wrapper is
-retained.
+Older LinuxCompat wrapper installations are detected but no longer managed.
+Install the current release in a new folder and retain your old files/settings.
+Migration, `--source`, and `--settings` have been removed. The active configuration
+override remains `--config`; supported Windows Legacy launchers are unaffected.
 
 ## Scripted and offline use
 
@@ -237,8 +228,6 @@ An explicit action with `--yes` uses the same implementation without the termina
 ./PulsarConfig-linux-x64.bin install --target "$HOME/Games/Pulsar" --yes
 ./PulsarConfig-linux-x64.bin install --game se2 --target "$HOME/Games/Pulsar" --yes
 ./PulsarConfig-linux-x64.bin update --target "$HOME/Games/Pulsar" --version v2.4.0 --yes
-./PulsarConfig-linux-x64.bin migrate --target "$HOME/.local/share/Pulsar" \
-    --settings "$HOME/.config/Pulsar" --yes
 ./PulsarConfig-linux-x64.bin uninstall --target "$HOME/Games/Pulsar" --yes
 ```
 
@@ -248,30 +237,13 @@ shared package. Omitting `--game` preserves the saved choice.
 
 `--archive /path/to/pulsar-v2.4.0-linux-x64.tar.gz` uses a local release archive.
 Supply `--sha256 HEX_DIGEST` to verify it; otherwise a local archive is treated
-as a file you already trust. The installer never downloads or executes the old
-installer during migration.
+as a file you already trust.
 
 ## Validation
 
 ```sh
 dotnet test PulsarConfigTests/PulsarConfigTests.csproj -c Release
 ```
-
-The optional integration test runs the **actual** native 1.0.16 install script,
-migrates its output using a real unified release archive, checks the migrated
-profiles/developer sources, updates, uninstalls, and runs the old cleanup script.
-Every home, XDG, and legacy install location is redirected into a temporary
-directory which is removed at the end, including settings, icons, and backups.
-It does not launch the old game.
-
-```sh
-PULSAR_TEST_LEGACY_BUNDLE=/path/to/extracted/PulsarForLinux-Native \
-PULSAR_TEST_RELEASE_ARCHIVE=/path/to/pulsar-v2.4.0-linux-x64.tar.gz \
-    dotnet test PulsarConfigTests/PulsarConfigTests.csproj -c Release
-```
-
-The reference bundle is the `PulsarForLinux-Native.*.7z` asset of
-[linux-compat release 1.0.16](https://github.com/CometWorks/linux-compat/releases/tag/1.0.16).
 
 ## Appearance
 

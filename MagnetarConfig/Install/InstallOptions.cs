@@ -9,12 +9,17 @@ internal sealed class InstallOptions
     public string Target = DefaultTarget();
     public string Version = "latest";
     public string? Action, Archive, Sha256, Ds64;
-    public bool CheckDependencies = true, Yes;
+    public bool CheckDependencies = true, Yes, TargetSpecified;
 
     public static string DefaultTarget()
     {
         string adjacent = Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory);
         if (Installer.IsPortable(adjacent)) return adjacent;
+        return DataTarget();
+    }
+
+    internal static string DataTarget()
+    {
         string data = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         if (!OperatingSystem.IsWindows() && Environment.GetEnvironmentVariable("XDG_DATA_HOME") is { Length: > 0 } xdg)
             data = xdg;
@@ -31,7 +36,7 @@ internal sealed class InstallOptions
             switch (arg)
             {
                 case "install" or "update" or "uninstall" or "check" when options.Action is null: options.Action = arg; break;
-                case "--target": options.Target = Value(); break;
+                case "--target": options.Target = Value(); options.TargetSpecified = true; break;
                 case "--version": options.Version = Value(); break;
                 case "--archive": options.Archive = Value(); break;
                 case "--sha256": options.Sha256 = Value(); break;

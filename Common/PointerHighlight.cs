@@ -1,6 +1,8 @@
+#nullable enable
+using System;
 using Terminal.Gui;
 
-namespace Pulsar.Config;
+namespace CometWorks.ConfigTools;
 
 // Observe input without changing focus, selection, or event handling.
 internal sealed class PointerHighlight : IDisposable

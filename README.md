@@ -57,7 +57,7 @@ profiles. Other open windows pick up the change on their next launch.
 ## Tool guides
 
 - [PulsarConfig guide](Docs/PulsarConfig.md): navigation, Steam launch, plugins,
-  sources, dev folders, profiles, installation and migration.
+  sources, dev folders, profiles, installation discovery and management.
 - [MagnetarConfig manual](Docs/MagnetarConfig.md): installation, server/world
   settings, mods, plugins, profiles, lifecycle control and logs.
 - [MagnetarConfig internals](Docs/MagnetarConfigInternals.md).

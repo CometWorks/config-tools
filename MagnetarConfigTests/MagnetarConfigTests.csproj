@@ -22,6 +22,7 @@
   <ItemGroup>
     <Compile Include="../PulsarConfigTests/SelfUpdateTests.cs" Link="SelfUpdateTests.cs" />
     <Compile Include="../PulsarConfigTests/StartupUpdateTests.cs" Link="StartupUpdateTests.cs" />
+    <Compile Include="../PulsarConfigTests/InstallationCatalogTests.cs" Link="InstallationCatalogTests.cs" />
     <Compile Include="../PulsarConfigTests/TerminalInputTests.cs" Link="TerminalInputTests.cs" />
     <None Include="Fixtures\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

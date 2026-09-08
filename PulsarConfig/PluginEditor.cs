@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Text;
-using System.Text.Json;
 using System.Xml.Linq;
 using Magnetar.Config.Model;
 
@@ -52,12 +51,7 @@ internal sealed class PluginEditor
         if (Game == "auto")
         {
             string receipt = new Installer(options, _ => { }).Receipt;
-            using var json = JsonDocument.Parse(
-                File.Exists(receipt) ? File.ReadAllText(receipt) : "{}"
-            );
-            Game = json.RootElement.TryGetProperty("game", out var game)
-                ? game.GetString() ?? "se1"
-                : "se1";
+            Game = InstallationDiscovery.ResolveGame(Target, receipt);
         }
         if (Game is not ("se1" or "se2"))
             throw new SetupError("Select SE1 or SE2; the saved game selection is invalid.");

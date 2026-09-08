@@ -19,7 +19,7 @@ internal static class InstancePickerDialog
         seed ??= InstanceLocator.ResolveDefaults(new InstanceBinding());
 
         // Span the full terminal width, leaving a 2-column margin on each side.
-        var dlg = new Dialog("Open Instance", 74, 16)
+        using var dlg = new WorkspaceDialog("Open Instance", 74, 20)
         {
             ColorScheme = TerminalTheme.Dialog,
             X = 2, Width = Dim.Fill(2),
@@ -34,7 +34,21 @@ internal static class InstancePickerDialog
         TextField ds64 = Field(dlg, "DS install (-ds64):", 7, seed.Ds64Dir,
             cur => FileDialogs.PickDirectory("DS install", "Select the DedicatedServer64 folder", cur));
 
-        var note = new Label("The DS data dir must already exist.") { X = 1, Y = 9, Width = Dim.Fill(2) };
+        var installations = new WorkspaceButton("Choose _installation…") { X = 1, Y = 9, Width = Dim.Fill(2), Height = 3 };
+        installations.Clicked += () =>
+        {
+            string oldRoot = string.IsNullOrWhiteSpace(exe.Text.ToString()) ? null : Path.GetDirectoryName(exe.Text.ToString());
+            string selected = InstallationPicker.Show(Install.InstallationDiscovery.Create(), oldRoot, allowNew: false);
+            if (selected == null) return;
+            // Only replace a derived default; explicit/custom instance configuration stays put.
+            if (string.IsNullOrWhiteSpace(config.Text.ToString()) ||
+                InstallationCatalog.PathComparer.Equals(config.Text.ToString(), InstanceLocator.DefaultMagnetarConfigDir(oldRoot)))
+                config.Text = InstanceLocator.DefaultMagnetarConfigDir(selected);
+            exe.Text = InstanceLocator.DefaultMagnetarExe(selected);
+            exe.CursorPosition = config.CursorPosition = 0;
+        };
+        dlg.Add(installations);
+        var note = new Label("The DS data dir must already exist. Choosing an install keeps DS data and binaries paths.") { X = 1, Y = 12, Width = Dim.Fill(2), Height = 2 };
         dlg.Add(note);
 
         InstanceBinding result = null;

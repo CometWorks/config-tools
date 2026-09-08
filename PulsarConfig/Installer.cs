@@ -4,7 +4,6 @@ using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Xml.Linq;
 
 namespace Pulsar.Config;
 
@@ -38,11 +37,6 @@ internal sealed class Installer
         "Modern.runtimeconfig.json",
         "Libraries/Modern/Pulsar.Shared.dll",
     ];
-    private static readonly Dictionary<string, string> CoreIds = new()
-    {
-        ["se-linux-compat"] = "linux-compat",
-        ["se-dotnet-compat"] = "dotnet-compat",
-    };
     private readonly Options options;
     private readonly Action<string> report;
     internal Action<string, byte[]> Write = Files.Write;
@@ -53,7 +47,8 @@ internal sealed class Installer
     internal string Game;
 
     internal static bool Modern(string path) =>
-        Required.All(name => File.Exists(Path.Combine(path, name)));
+        Required.All(name => File.Exists(Path.Combine(path, name)))
+        || Se2Required.All(name => File.Exists(Path.Combine(path, name)));
 
     internal static bool Legacy(string path) =>
         File.Exists(Path.Combine(path, "Interim"))
@@ -64,7 +59,7 @@ internal sealed class Installer
         this.options = options;
         this.report = report;
         Target = Files.InstallPath(options.Target);
-        StateDir = stateRoot ?? Path.Combine(Files.StateHome, "pulsar-installer");
+        StateDir = stateRoot ?? InstallationDiscovery.StateDirectory;
         Receipt = Path.Combine(StateDir, Files.HashText(OperatingSystem.IsWindows() ? Target.ToUpperInvariant() : Target)[..20] + ".json");
         Desktop = desktopPath ?? (OperatingSystem.IsWindows()
             ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "Pulsar.url")
@@ -87,21 +82,15 @@ internal sealed class Installer
              || Files.Contains(Target, Files.FullPath(AppContext.BaseDirectory))))
             throw new SetupError("Run PulsarConfig from outside the installation folder before changing it on Windows.");
         Files.RequireStopped(Target);
-        bool known = Modern(Target) || Legacy(Target) || File.Exists(Receipt);
-        if (
-            Directory.Exists(Target)
-            && Directory.EnumerateFileSystemEntries(Target).Any()
-            && !known
-        )
-            throw new SetupError("This non-empty folder is not a recognized Pulsar installation.");
-        if (action == "install" && (Modern(Target) || Legacy(Target)))
-            throw new SetupError("Pulsar is already installed. Choose Update or Migrate.");
-        if (action == "update" && !Modern(Target))
-            throw new SetupError(
-                "Choose Migrate for an old LinuxCompat installation, or Install for a new folder."
-            );
-        if (action == "uninstall" && !known)
-            throw new SetupError("No recognized Pulsar installation exists at this path.");
+        if (Legacy(Target))
+            throw new SetupError("This older Linux layout is no longer supported. Install the current release in a new folder; retain your existing files and settings.");
+        var installation = InstallationDiscovery.Create(StateDir).Inspect(Target);
+        if (action == "install" && !installation.CanInstall)
+            throw new SetupError(installation.CanUpdate ? "Pulsar is already installed. Choose Update." : installation.Status);
+        if (action == "update" && !installation.CanUpdate)
+            throw new SetupError("No current Pulsar installation was found. " + installation.Status);
+        if (action == "uninstall" && !installation.CanUninstall)
+            throw new SetupError("No complete Pulsar installation was found. " + installation.Status);
     }
 
     private static readonly HttpClient Http = CreateHttp();
@@ -205,7 +194,7 @@ internal sealed class Installer
         if (OperatingSystem.IsWindows())
         {
             UnpackZip(archive, destination, token);
-            if (!Modern(destination))
+            if (!Required.All(name => File.Exists(Path.Combine(destination, name))))
                 throw new SetupError("Not a Pulsar Windows package: required launcher files are missing.");
             return digest;
         }
@@ -262,7 +251,7 @@ internal sealed class Installer
                     );
             }
         }
-        if (!Modern(destination))
+        if (!Required.All(name => File.Exists(Path.Combine(destination, name))))
             throw new SetupError(
                 "Not a unified Pulsar Linux package: required launcher files are missing."
             );
@@ -311,123 +300,7 @@ internal sealed class Installer
         }
     }
 
-    internal static void CopySettings(string source, string destination)
-    {
-        if (!Directory.Exists(source))
-            throw new SetupError($"Legacy settings directory does not exist: {source}");
-        if (new DirectoryInfo(destination).LinkTarget is not null)
-            throw new SetupError("Destination settings must not be a symbolic link.");
-        if (OperatingSystem.IsLinux())
-            Directory.CreateDirectory(
-                destination,
-                File.GetUnixFileMode(source)
-                    | UnixFileMode.UserRead
-                    | UnixFileMode.UserWrite
-                    | UnixFileMode.UserExecute
-            );
-        else
-            Directory.CreateDirectory(destination);
-        foreach (string name in new[] { "config.xml", "Sources", "Profiles", "Local" })
-        {
-            string src = Path.Combine(source, name),
-                dest = Path.Combine(destination, name);
-            if (!Files.Exists(src))
-                continue;
-            if (Files.Exists(dest))
-                throw new SetupError(
-                    $"Migration would overwrite existing settings: {name}. Use an empty destination."
-                );
-            if (Directory.Exists(src))
-                Files.CopyTree(
-                    src,
-                    dest,
-                    preserveLinks: name == "Local",
-                    skipCaches: name == "Sources"
-                );
-            else
-                File.Copy(src, dest);
-        }
-        if (OperatingSystem.IsLinux())
-            File.SetUnixFileMode(destination, File.GetUnixFileMode(source));
-    }
-
-    internal static void MigrateSettings(string root, Action<string> report)
-    {
-        var profiles = Directory.Exists(Path.Combine(root, "Profiles"))
-            ? Directory
-                .GetFiles(Path.Combine(root, "Profiles"), "*.xml")
-                .Select(p => (path: p, xml: XDocument.Load(p)))
-                .ToArray()
-            : [];
-        var manifests = new Dictionary<string, string>();
-        foreach (var (_, xml) in profiles)
-        foreach (var item in xml.Descendants("LocalFolderConfig"))
-            if (
-                (string?)item.Element("Id") is { } id
-                && (string?)item.Element("DataFile") is { Length: > 0 } manifest
-            )
-                manifests[id] = manifest;
-        var remap = new Dictionary<string, string>(CoreIds);
-        string sourcesFile = Path.Combine(root, "Sources/sources.xml");
-        if (File.Exists(sourcesFile))
-        {
-            var sources = XDocument.Load(sourcesFile);
-            foreach (var hub in sources.Descendants("RemoteHub"))
-            {
-                hub.Element("Hash")?.Remove();
-                hub.Element("LastCheck")?.Remove();
-            }
-            foreach (var item in sources.Descendants("LocalPlugin"))
-            {
-                string folder = Files.FullPath((string?)item.Element("Folder") ?? ".");
-                string oldId = Path.GetFileName(folder);
-                string? manifest = (string?)item.Element("File");
-                if (string.IsNullOrEmpty(manifest))
-                    manifest =
-                        manifests.GetValueOrDefault(oldId)
-                        ?? manifests.GetValueOrDefault((string?)item.Element("Name") ?? "");
-                string? newId = null;
-                if (!string.IsNullOrEmpty(manifest))
-                {
-                    item.SetElementValue("File", manifest);
-                    string path = Path.Combine(folder, manifest);
-                    if (File.Exists(path))
-                        newId = (string?)XDocument.Load(path).Root?.Element("Id");
-                    if (!string.IsNullOrEmpty(newId))
-                        remap[oldId] = newId;
-                }
-                if (CoreIds.TryGetValue(oldId, out string? coreId) && newId != coreId)
-                {
-                    remap[oldId] = coreId;
-                    item.SetElementValue("Enabled", "false");
-                    report($"Using the current released core plugin: {coreId}");
-                }
-                else if (string.IsNullOrEmpty(newId))
-                    report(
-                        $"Check developer source '{oldId}': its plugin XML manifest is missing or has no ID."
-                    );
-            }
-            Files.Write(sourcesFile, Encoding.UTF8.GetBytes(sources.ToString()));
-        }
-        foreach (var (path, profile) in profiles)
-        {
-            foreach (var item in profile.Descendants("LocalFolderConfig").ToArray())
-            {
-                string id = (string?)item.Element("Id") ?? "";
-                item.Element("DataFile")?.Remove();
-                if (CoreIds.ContainsKey(id))
-                    item.Remove();
-                else if (remap.TryGetValue(id, out string? newId))
-                    item.SetElementValue("Id", newId);
-            }
-            foreach (var item in profile.Descendants("GitHubPluginConfig"))
-                if (remap.TryGetValue((string?)item.Element("Id") ?? "", out string? newId))
-                    item.SetElementValue("Id", newId);
-            Files.Write(path, Encoding.UTF8.GetBytes(profile.ToString()));
-        }
-    }
-
-    internal void Commit(string stage, byte[] state, string? desktop, bool oldShortcut)
+    internal void Commit(string stage, byte[] state, string? desktop)
     {
         string? backup = null;
         bool switched = false;
@@ -451,8 +324,7 @@ internal sealed class Installer
             else if (
                 oldDesktop is not null
                 && (
-                    oldShortcut
-                    || Encoding
+                    Encoding
                         .UTF8.GetString(oldDesktop)
                         .Replace("\r\n", "\n")
                         .Contains($"X-Pulsar-Install-Path={Target}\n", Files.Comparison)
@@ -488,35 +360,6 @@ internal sealed class Installer
             report($"Previous installation backed up at {backup}");
     }
 
-    private void CleanIcons()
-    {
-        foreach (int size in new[] { 16, 24, 32, 48, 64, 96, 128, 256 })
-        {
-            string icon = Path.Combine(
-                Files.DataHome,
-                $"icons/hicolor/{size}x{size}/apps/pulsar.png"
-            );
-            if (!File.Exists(icon))
-                continue;
-            try
-            {
-                Files.Write(
-                    Path.Combine(StateDir, "legacy-icons", size.ToString(), "pulsar.png"),
-                    File.ReadAllBytes(icon)
-                );
-                File.Delete(icon);
-            }
-            catch (IOException error)
-            {
-                report($"Installed; could not clean old icon {icon}: {error.Message}");
-            }
-            catch (UnauthorizedAccessException error)
-            {
-                report($"Installed; could not clean old icon {icon}: {error.Message}");
-            }
-        }
-    }
-
     internal string CheckPrerequisites()
     {
         ResolveGame();
@@ -527,12 +370,7 @@ internal sealed class Installer
     {
         if (Game == "auto")
         {
-            using var receipt = JsonDocument.Parse(
-                File.Exists(Receipt) ? File.ReadAllText(Receipt) : "{}"
-            );
-            Game = receipt.RootElement.TryGetProperty("game", out var game)
-                ? game.GetString() ?? "se1"
-                : "se1";
+            Game = InstallationDiscovery.ResolveGame(Target, Receipt);
         }
         if (Game is not ("se1" or "se2"))
             throw new SetupError("Unknown saved game selection; choose --game se1 or se2.");
@@ -540,37 +378,13 @@ internal sealed class Installer
 
     public async Task Run(string action, CancellationToken token = default)
     {
-        if (action is not ("install" or "update" or "migrate" or "uninstall"))
+        if (action is not ("install" or "update" or "uninstall"))
             throw new SetupError("Unknown setup action.");
         using var operationLock = Files.Lock(StateDir);
         Validate(action);
         ResolveGame();
         if (action != "uninstall")
             report(CometWorks.ConfigTools.Prerequisites.Pulsar(Game));
-        string old =
-            action == "migrate" && options.Source is not null
-                ? Files.InstallPath(options.Source)
-                : Target;
-        string settings = Files.RealPath(options.Settings ?? Files.OldConfig);
-        string oldCommand = "Exec=" + Path.Combine(old, "Interim");
-        bool oldShortcut =
-            Legacy(old)
-            && File.Exists(Desktop)
-            && File.ReadLines(Desktop)
-                .Any(line =>
-                    line == oldCommand
-                    || line.StartsWith(oldCommand + " ", StringComparison.Ordinal)
-                );
-        if (action == "migrate")
-        {
-            if (!Legacy(old))
-                throw new SetupError(
-                    "Legacy source must contain the 1.0.x Interim wrapper and Bin/Interim."
-                );
-            Files.RequireStopped(old);
-            if (old != Target && (Files.Contains(old, Target) || Files.Contains(Target, old)))
-                throw new SetupError("Source and destination must not contain one another.");
-        }
         string parent = Path.GetDirectoryName(Target)!;
         Directory.CreateDirectory(parent);
         string work = Path.Combine(parent, $".{Path.GetFileName(Target)}-setup-{Guid.NewGuid():N}");
@@ -620,18 +434,6 @@ internal sealed class Installer
                 Directory.CreateDirectory(stage);
             foreach (string name in ProgramFiles)
                 Files.Remove(Path.Combine(stage, name));
-            if (Legacy(stage))
-            {
-                if (action is not ("migrate" or "uninstall"))
-                    throw new SetupError("This is a legacy installation. Choose Migrate.");
-                Files.Remove(Path.Combine(stage, "Bin"));
-                Files.Remove(Path.Combine(stage, "Interim"));
-            }
-            if (action == "migrate")
-            {
-                CopySettings(settings, Path.Combine(stage, "Legacy"));
-                MigrateSettings(Path.Combine(stage, "Legacy"), report);
-            }
             if (action != "uninstall")
                 foreach (string entry in Directory.EnumerateFileSystemEntries(package))
                 {
@@ -642,7 +444,7 @@ internal sealed class Installer
                         File.Move(entry, dest);
                 }
             token.ThrowIfCancellationRequested();
-            Files.RequireStopped(Target, old);
+            Files.RequireStopped(Target);
             byte[] state = JsonSerializer.SerializeToUtf8Bytes(
                 new
                 {
@@ -654,9 +456,7 @@ internal sealed class Installer
                 }
             );
             // Cancellation stops before this point. Never interrupt a switch halfway through.
-            Commit(stage, state, action == "uninstall" ? null : DesktopContents, oldShortcut);
-            if (oldShortcut)
-                CleanIcons();
+            Commit(stage, state, action == "uninstall" ? null : DesktopContents);
             if (action == "uninstall")
             {
                 report($"Program files removed. Settings and other files remain in {Target}");
@@ -675,16 +475,6 @@ internal sealed class Installer
                 report(
                     "Pulsar itself still requires the .NET 10 runtime; the setup tool's bundled runtime is private to this executable."
                 );
-            }
-            if (action == "migrate")
-            {
-                report(
-                    $"Original settings retained at {settings}; old caches were not transferred."
-                );
-                if (old != Target)
-                    report(
-                        $"Old program files retained at {old}. Remove them after checking the new installation."
-                    );
             }
         }
         finally

@@ -4,7 +4,6 @@ using System.IO.Compression;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Text.Json;
-using System.Xml.Linq;
 using Pulsar.Config;
 using Xunit;
 
@@ -275,128 +274,18 @@ public sealed class InstallerTests : IDisposable
         }
     }
 
-    private string LegacySettings()
-    {
-        string state = Files.OldConfig,
-            dev = home + "/dev/se-remote";
-        Files.Write(
-            dev + "/Remote.xml",
-            Encoding.UTF8.GetBytes("<PluginData><Id>remote</Id></PluginData>")
-        );
-        Files.Write(state + "/config.xml", Encoding.UTF8.GetBytes("<CoreConfig/>"));
-        Files.Write(state + "/Local/Custom.dll", [1, 2, 3]);
-        Files.Write(state + "/Sources/Hubs/obsolete.bin", [4, 5, 6]);
-        var sources = new XElement(
-            "SourcesConfig",
-            new XElement(
-                "RemoteHubSources",
-                new XElement("RemoteHub", new XElement("Hash", "stale"))
-            ),
-            new XElement(
-                "LocalPluginSources",
-                new XElement(
-                    "LocalPlugin",
-                    new XElement("Name", "se-remote"),
-                    new XElement("Folder", dev),
-                    new XElement("File", ""),
-                    new XElement("Enabled", true)
-                ),
-                new XElement(
-                    "LocalPlugin",
-                    new XElement("Name", "se-linux-compat"),
-                    new XElement("Folder", home + "/missing/se-linux-compat"),
-                    new XElement("Enabled", true)
-                )
-            )
-        );
-        Files.Write(state + "/Sources/sources.xml", Encoding.UTF8.GetBytes(sources.ToString()));
-        Files.Write(
-            state + "/Profiles/Current.xml",
-            Encoding.UTF8.GetBytes(
-                """
-                <Profile><Name>Current</Name><GitHub><GitHubPluginConfig><Id>se-dotnet-compat</Id></GitHubPluginConfig></GitHub>
-                <DevFolder><LocalFolderConfig><Id>se-linux-compat</Id><DataFile>LinuxCompatClient.xml</DataFile></LocalFolderConfig>
-                <LocalFolderConfig><Id>se-remote</Id><DataFile>Remote.xml</DataFile><DebugBuild>true</DebugBuild></LocalFolderConfig></DevFolder>
-                <Mods><unsignedLong>123456</unsignedLong></Mods></Profile>
-                """
-            )
-        );
-        return state;
-    }
-
-    private void AssertMigrated(string original)
-    {
-        string root = options.Target + "/Legacy";
-        Assert.Equal(
-            File.ReadAllBytes(original + "/Local/Custom.dll"),
-            File.ReadAllBytes(root + "/Local/Custom.dll")
-        );
-        Assert.False(Directory.Exists(root + "/Sources/Hubs"));
-        Assert.True(File.Exists(original + "/Sources/Hubs/obsolete.bin"));
-        var source = XDocument.Load(root + "/Sources/sources.xml");
-        Assert.Empty(source.Descendants("Hash"));
-        Assert.Equal(
-            "Remote.xml",
-            source.Descendants("LocalPlugin").First().Element("File")!.Value
-        );
-        Assert.Equal("false", source.Descendants("LocalPlugin").Last().Element("Enabled")!.Value);
-        var profile = XDocument.Load(root + "/Profiles/Current.xml");
-        Assert.Equal(
-            "remote",
-            Assert.Single(profile.Descendants("LocalFolderConfig")).Element("Id")!.Value
-        );
-        Assert.Empty(profile.Descendants("DataFile"));
-        Assert.Equal(
-            "dotnet-compat",
-            profile.Descendants("GitHubPluginConfig").Single().Element("Id")!.Value
-        );
-        Assert.Equal("123456", profile.Descendants("unsignedLong").Single().Value);
-    }
-
     [LinuxFact]
-    public async Task Migration_moves_profiles_and_dev_manifests_not_caches()
+    public async Task Older_layout_and_removed_migration_are_rejected_without_changes()
     {
-        string state = LegacySettings();
-        File.SetUnixFileMode(state, (UnixFileMode)448);
         UserFile("Interim", "old wrapper");
         UserFile("Bin/Interim", "old binary");
-        options.Settings = state;
-        await installer.Run("migrate");
-        AssertMigrated(state);
-        Assert.Equal((UnixFileMode)448, File.GetUnixFileMode(options.Target + "/Legacy"));
-        Assert.False(File.Exists(options.Target + "/Interim"));
-        Assert.False(Directory.Exists(options.Target + "/Bin"));
-    }
-
-    [LinuxFact]
-    public void Symlinked_config_trees_do_not_modify_originals()
-    {
-        string state = LegacySettings(),
-            original = home + "/original-profiles";
-        Directory.Move(state + "/Profiles", original);
-        Directory.CreateSymbolicLink(state + "/Profiles", original);
-        string before = File.ReadAllText(original + "/Current.xml"),
-            copy = home + "/copied";
-        Installer.CopySettings(state, copy);
-        Installer.MigrateSettings(copy, log.Add);
-        Assert.Equal(before, File.ReadAllText(original + "/Current.xml"));
-        Assert.Null(new DirectoryInfo(copy + "/Profiles").LinkTarget);
-    }
-
-    [LinuxFact]
-    public async Task Migration_conflict_preserves_both_installations()
-    {
-        string state = LegacySettings(),
-            old = home + "/old";
-        Files.Write(old + "/Interim", [1]);
-        Files.Write(old + "/Bin/Interim", [2]);
-        await installer.Run("install");
-        UserFile("Legacy/Profiles/Current.xml", "existing");
-        options.Source = old;
-        options.Settings = state;
-        await Assert.ThrowsAsync<SetupError>(() => installer.Run("migrate"));
-        Assert.Equal("existing", File.ReadAllText(options.Target + "/Legacy/Profiles/Current.xml"));
-        Assert.True(Installer.Legacy(old));
+        foreach (string action in new[] { "install", "update", "uninstall", "migrate" })
+            await Assert.ThrowsAsync<SetupError>(() => installer.Run(action));
+        Assert.Equal("old wrapper", File.ReadAllText(options.Target + "/Interim"));
+        Assert.Equal("old binary", File.ReadAllText(options.Target + "/Bin/Interim"));
+        Assert.Throws<SetupError>(() => Options.Parse(["migrate"]));
+        Assert.Throws<SetupError>(() => Options.Parse(["--source", home]));
+        Assert.Throws<SetupError>(() => Options.Parse(["--settings", home]));
     }
 
     [LinuxFact]
@@ -411,44 +300,4 @@ public sealed class InstallerTests : IDisposable
         Assert.Equal("first", File.ReadAllText(options.Target + "/Interim.bin"));
     }
 
-    [LinuxFact]
-    public async Task Actual_1_0_16_install_migrate_update_uninstall()
-    {
-        string? bundle = Environment.GetEnvironmentVariable("PULSAR_TEST_LEGACY_BUNDLE");
-        string? release = Environment.GetEnvironmentVariable("PULSAR_TEST_RELEASE_ARCHIVE");
-        if (bundle is null || release is null)
-            return; // Optional real-release fixture; see Docs/PulsarConfig.md.
-        async Task OldScript(string action)
-        {
-            var start = new ProcessStartInfo("bash")
-            {
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-            };
-            start.ArgumentList.Add(Path.Combine(bundle, action + ".sh"));
-            start.Environment["PULSAR_DATA_DIR"] = options.Target;
-            start.Environment["PULSAR_DIR"] = Files.OldConfig;
-            using var process = Process.Start(start)!;
-            var output = process.StandardOutput.ReadToEndAsync();
-            var errors = process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync();
-            Assert.True(process.ExitCode == 0, await output + await errors);
-        }
-        await OldScript("install");
-        string state = LegacySettings();
-        options.Settings = state;
-        options.Archive = release;
-        options.Sha256 = Files.Hash(release);
-        await installer.Run("migrate");
-        AssertMigrated(state);
-        Assert.Empty(
-            Directory.GetFiles(Files.DataHome + "/icons", "pulsar.png", SearchOption.AllDirectories)
-        );
-        await installer.Run("update");
-        await installer.Run("uninstall");
-        Assert.True(File.Exists(options.Target + "/Legacy/Profiles/Current.xml"));
-        await OldScript("uninstall");
-        Assert.False(Directory.Exists(options.Target));
-        Assert.False(File.Exists(installer.Desktop));
-    }
 }
