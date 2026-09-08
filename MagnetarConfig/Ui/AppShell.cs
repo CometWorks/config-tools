@@ -22,7 +22,7 @@ internal sealed class AppShell : Toplevel
     private readonly AtomicFile writer = new();
     private readonly MagnetarProcess process;
     private readonly ProcessMonitor monitor;
-    private readonly ToolSettings settings;
+    private ToolSettings settings;
 
     private DsInstance instance;
     private View content;
@@ -92,9 +92,7 @@ internal sealed class AppShell : Toplevel
             new MenuBarItem("_File", new[]
             {
                 new MenuItem("_Open Instance…", "", ReopenInstance),
-                new MenuItem("_Install / update / uninstall…", "", () =>
-                    Install.SetupUi.Run(string.IsNullOrEmpty(binding.MagnetarExePath) ? null :
-                        System.IO.Path.GetDirectoryName(binding.MagnetarExePath), binding.Ds64Dir)),
+                new MenuItem("_Install / update / uninstall…", "", ManageInstallation),
                 new MenuItem("_Quit", "", () => RequestQuit()),
             }),
             new MenuBarItem("_Server", new[]
@@ -467,15 +465,53 @@ internal sealed class AppShell : Toplevel
         else Dialogs.Error("Reload", r.Message);
     }
 
+    private bool CanSwitchInstance()
+    {
+        if (content is IAutoSaveContent auto)
+        {
+            auto.FlushPendingSave();
+            if (auto.InvalidFields.Count > 0)
+            {
+                Dialogs.Error("Open Instance", "Correct the invalid fields before switching instances.");
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void ManageInstallation()
+    {
+        if (!CanSwitchInstance()) return;
+        string oldRoot = string.IsNullOrEmpty(binding.MagnetarExePath) ? null : System.IO.Path.GetDirectoryName(binding.MagnetarExePath);
+        var options = new Install.InstallOptions { Target = oldRoot ?? Install.InstallOptions.DefaultTarget(), Ds64 = binding.Ds64Dir };
+        Install.SetupUi.Run(options);
+        if (InstallationCatalog.PathComparer.Equals(oldRoot, options.Target) || !Install.Installer.IsPortable(options.Target)) return;
+        OpenBinding(new InstanceBinding
+        {
+            MagnetarExePath = InstanceLocator.DefaultMagnetarExe(options.Target),
+            MagnetarConfigDir = InstallationCatalog.PathComparer.Equals(binding.MagnetarConfigDir, InstanceLocator.DefaultMagnetarConfigDir(oldRoot))
+                ? InstanceLocator.DefaultMagnetarConfigDir(options.Target) : binding.MagnetarConfigDir,
+            DataDir = binding.DataDir,
+            Ds64Dir = binding.Ds64Dir,
+        });
+    }
+
     private void ReopenInstance()
     {
+        if (!CanSwitchInstance()) return;
         InstanceBinding chosen = InstancePickerDialog.Show(binding);
         if (chosen == null)
             return;
+        OpenBinding(chosen);
+    }
+
+    private void OpenBinding(InstanceBinding chosen)
+    {
         binding.DataDir = chosen.DataDir;
         binding.MagnetarConfigDir = chosen.MagnetarConfigDir;
         binding.MagnetarExePath = chosen.MagnetarExePath;
         binding.Ds64Dir = chosen.Ds64Dir;
+        settings = ToolSettings.Load(binding.MagnetarConfigDir);
         instance = DsInstance.Open(binding);
         ShowDashboard();
         RefreshStatus();

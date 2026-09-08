@@ -1,6 +1,7 @@
 using System.Formats.Tar;
 using System.IO.Compression;
 using System.Text;
+using CometWorks.ConfigTools;
 using Pulsar.Config;
 using Xunit;
 
@@ -12,6 +13,42 @@ public sealed class PortableInstallTests : IDisposable
 
     public PortableInstallTests() => Directory.CreateDirectory(root);
     public void Dispose() => Directory.Delete(root, true);
+
+    [Fact]
+    public void Discovery_recognizes_unregistered_game_variants_and_older_layouts()
+    {
+        var catalog = InstallationDiscovery.Create(Path.Combine(root, "receipts"), Path.Combine(root, "history.json"));
+        foreach (var (name, files, variant) in new[]
+                 { ("se1", Installer.Required, "SE1"), ("se2", Installer.Se2Required, "SE2") })
+        {
+            string target = Path.Combine(root, name);
+            foreach (string file in files)
+            {
+                string path = Path.Combine(target, file);
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                File.WriteAllText(path, "program");
+            }
+            var item = catalog.Inspect(target);
+            Assert.True(item.CanOpen);
+            Assert.Equal(variant, item.Variants);
+            Assert.True(Installer.Modern(target));
+            Assert.Equal(name, new PluginEditor(new Options { Target = target }).Game);
+            catalog.Remember(target);
+        }
+        Assert.Equal(2, catalog.Discover().Count(item => item.CanOpen && item.Path.StartsWith(root)));
+        string older = Path.Combine(root, "older");
+        Directory.CreateDirectory(Path.Combine(older, "Bin"));
+        File.WriteAllText(Path.Combine(older, "Interim"), "wrapper");
+        File.WriteAllText(Path.Combine(older, "Bin", "Interim"), "program");
+        Assert.Equal(InstallationKind.Older, catalog.Inspect(older).Kind);
+        Assert.False(catalog.Inspect(older).CanUninstall);
+        File.Delete(Path.Combine(root, "se1", "Interim.runtimeconfig.json"));
+        Assert.Equal(InstallationKind.Incomplete, catalog.Inspect(Path.Combine(root, "se1")).Kind);
+        Assert.True(Options.Parse(["--target", root]).TargetSpecified);
+        string brokenReceipt = Path.Combine(root, "broken.json");
+        File.WriteAllText(brokenReceipt, "{");
+        Assert.Equal("se2", InstallationDiscovery.ResolveGame(Path.Combine(root, "se2"), brokenReceipt));
+    }
 
     private string Package(string revision)
     {

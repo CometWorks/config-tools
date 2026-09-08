@@ -83,8 +83,8 @@ Windows x64 with .NET and Terminal.Gui bundled. Download from
 [config-tools releases](https://github.com/CometWorks/config-tools/releases),
 make the Linux file executable (`chmod +x`), and run it. Magnetar server bundles
 do not include this tool. It needs no separate
-.NET installation. Place it beside your Magnetar launcher for the existing
-defaults, or pass `-magnetar`, `-config`, and `-path` explicitly.
+.NET installation. Choose an existing installation in the startup picker,
+or pass `-magnetar`, `-config`, and `-path` explicitly.
 
 The managed System.Console driver is used on both platforms, with standard
 `bash`/`stty` utilities on Linux. The legacy `-netdriver` option remains accepted.
@@ -95,19 +95,9 @@ views and edits remain in place. The choice is shared with PulsarConfig and
 saved in [machine-local user settings](../README.md#appearance), outside server
 instances and installation folders. With no saved preference, Magnetar defaults to Sandstone.
 
-Run it from the install folder, next to the launcher. The bundle is
-portable: the tool finds the launcher and the Magnetar config dir relative to
-its own binary, so the install folder can live anywhere (wherever you
-extracted the bundle, or the build's deploy folder — see [Install](https://github.com/CometWorks/magnetar/blob/main/Docs/Install.md)
-and [Building](https://github.com/CometWorks/magnetar/blob/main/Docs/Build.md)):
-
-```sh
-# Linux
-<install>/MagnetarConfig.bin
-
-# Windows
-<install>\MagnetarConfig.exe
-```
+Run the standalone executable from any folder. The installation picker detects
+known locations and lets you browse or search for unpacked installations. Keep
+the tool outside the target when changing an installation on Windows.
 
 ### Command-line options
 
@@ -120,13 +110,12 @@ MagnetarConfig [options]
   -config <dir>      Magnetar config directory (Magnetar's config.xml, logs,
                      magnetar.pid). Same semantics as Magnetar's own -config.
                      Default: the Magnetar folder next to the binaries,
-                     i.e. <install>/Magnetar where <install> is the folder
-                     MagnetarConfig runs from
+                     i.e. <install>/Magnetar in the selected installation
   -magnetar <file>   Magnetar launcher executable to start/stop. Default:
-                     MagnetarInterim.bin next to MagnetarConfig (Linux); on
+                     MagnetarInterim.bin in the selected install (Linux); on
                      Windows chosen at startup between the MagnetarLegacy.exe
                      (.NET Framework 4.8) and MagnetarInterim.exe (.NET 10)
-                     installed next to it — see the resolution order below
+                     in that installation — see the resolution order below
   -ds64 <dir>        DedicatedServer64 folder (for world templates). Default:
                      auto-detected like Magnetar (Steam registry / library
                      folders / ~/.steam default path)
@@ -150,15 +139,19 @@ Use **`-diag`** for a quick, scriptable status report without opening the UI.
 
 1. **Explicit arguments** win. A directory you name that does not exist is an
    error (the tool never silently falls back past a value you gave).
-2. **On Windows**, when neither `-magnetar` nor `-config` is given and **both**
-   launchers are installed next to `MagnetarConfig.exe`, a startup prompt asks
-   which one to configure — `MagnetarLegacy.exe` (.NET Framework 4.8) or
-   `MagnetarInterim.exe` (.NET 10). It is auto-selected when only one is present.
-3. **When neither `-path` nor `-config` is given**, the tool opens the
-   **instance picker** — four editable path fields (DS data dir, Magnetar config
-   dir, launcher, DS install), each with a **Browse** button, pre-filled with the
-   resolved platform defaults / auto-detection. The DS data dir must exist for
-   the instance to open. Reach it again any time from `File → Open Instance…`.
+2. **Choose the installation** when no launcher or instance was specified, or
+   when an explicit instance has no adjacent portable install to resolve its
+   launcher from. The picker detects current releases without requiring receipts.
+   Explicit config/data paths stay unchanged.
+3. **On Windows**, when neither `-magnetar` nor `-config` is given and both
+   launchers exist in the selected installation, choose `MagnetarLegacy.exe`
+   (.NET Framework 4.8) or `MagnetarInterim.exe` (.NET 10). A sole launcher is
+   selected automatically.
+4. **If no explicit instance was given and the default DS data directory is
+   missing**, the instance picker asks for the path pair, launcher, and DS
+   binaries. The DS data dir must exist. Open it again through
+   `File → Open Instance…`; **Choose installation** changes the launcher while
+   retaining custom config and DS paths.
 
 The tool keeps a tiny per-instance settings file, `MagnetarConfig.xml`, next to
 Magnetar's `config.xml` in the selected config dir (currently just the folder
@@ -443,6 +436,25 @@ work, see the
 [design and implementation notes](MagnetarConfigInternals.md#15-known-limitations-and-future-work).
 
 ## Installing and updating Magnetar
+
+Startup without explicit instance/launcher paths offers an installation picker.
+It checks the tool directory, working directory, default setup location, installer
+receipts, and remembered selections. Current unpacked releases are recognized
+without a receipt. **Browse** finds arbitrary installs; **Search folder** scans
+up to four levels and 2,000 directories under a selected parent, skipping hidden
+child folders and directory links. Back cancels the search. **Refresh** rechecks
+known locations. Enter a new folder and choose **Install new** for fresh setup.
+
+The same picker is available through **Choose installation** in setup and the
+instance picker. Selecting a launcher derives its default `Magnetar` config
+folder from that installation; custom config, DS data/worlds, and DS binaries
+remain separate. Explicit CLI paths are preserved. Successful selections are
+remembered in per-user tool state outside the installation.
+
+Setup shows installation status and enables applicable actions. Actions use
+three-row buttons with matching highlight and click areas. Tab/Shift-Tab move
+through the form; offscreen fields scroll into view on smaller terminals.
+
 
 Open **File → Install / update / uninstall** from the existing tool, or start
 `MagnetarConfig --setup` before an instance exists. The theme preference

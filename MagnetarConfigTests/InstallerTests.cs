@@ -10,6 +10,9 @@ using System.Threading.Tasks;
 using Magnetar.Config.Install;
 using SharpCompress.Writers.SevenZip;
 using Xunit;
+using CometWorks.ConfigTools;
+using Magnetar.Config.Io;
+using Magnetar.Config.Model;
 
 namespace Magnetar.Config.Tests;
 
@@ -29,6 +32,34 @@ public sealed class InstallerTests : IDisposable
     }
 
     public void Dispose() => Directory.Delete(root, true);
+
+    [Fact]
+    public void Unpacked_install_is_discovered_and_binds_its_own_launcher_and_config()
+    {
+        Directory.CreateDirectory(options.Target);
+        foreach (string name in new[] { "MagnetarInterim.bin", "MagnetarInterim.exe", "MagnetarInterim.dll", "MagnetarInterim.runtimeconfig.json", "MagnetarLegacy.exe" })
+            UserFile(name, "program");
+        var catalog = InstallationDiscovery.Create(Path.Combine(root, "receipts"), Path.Combine(root, "history.json"));
+        Assert.True(catalog.Inspect(options.Target).CanUpdate);
+        catalog.Remember(options.Target);
+        Assert.Contains(catalog.Discover(), item => item.Path == options.Target && item.CanOpen);
+        var binding = InstanceLocator.ResolveDefaults(new InstanceBinding
+        {
+            MagnetarExePath = InstanceLocator.DefaultMagnetarExe(options.Target),
+            DataDir = Path.Combine(root, "worlds"), Ds64Dir = Path.Combine(root, "game"),
+        });
+        Assert.Equal(Path.Combine(options.Target, "Magnetar"), binding.MagnetarConfigDir);
+        Assert.Equal(Path.Combine(root, "worlds"), binding.DataDir);
+        binding.MagnetarConfigDir = Path.Combine(root, "custom-config");
+        InstanceLocator.ResolveDefaults(binding);
+        Assert.Equal(Path.Combine(root, "custom-config"), binding.MagnetarConfigDir);
+        if (OperatingSystem.IsWindows())
+            Assert.Equal(2, InstanceLocator.PresentWindowsLaunchers(options.Target).Count);
+        UserFile("MagnetarInterim", "wrapper");
+        UserFile("Bin/MagnetarInterim", "program");
+        Assert.Equal(InstallationKind.Older, catalog.Inspect(options.Target).Kind);
+        Assert.True(InstallOptions.Parse(["--target", options.Target]).TargetSpecified);
+    }
 
     private string Package(string name, string revision, string? unexpected = null)
     {
@@ -140,7 +171,7 @@ public sealed class InstallerTests : IDisposable
         UserFile("MagnetarInterim", "old wrapper");
         UserFile("Bin/MagnetarInterim", "old binary");
         var error = await Assert.ThrowsAsync<InstallError>(() => installer.Run("update"));
-        Assert.Contains("migration", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("new folder", error.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("keep", File.ReadAllText(Path.Combine(options.Target, "important.txt")));
         Assert.Equal("old binary", File.ReadAllText(Path.Combine(options.Target, "Bin/MagnetarInterim")));
     }

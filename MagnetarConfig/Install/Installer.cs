@@ -36,9 +36,7 @@ internal sealed class Installer
         this.options = options;
         this.report = report;
         Target = InstallFiles.TargetPath(options.Target);
-        string state = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        if (!OperatingSystem.IsWindows() && Environment.GetEnvironmentVariable("XDG_STATE_HOME") is { Length: > 0 } xdg) state = xdg;
-        StateDirectory = InstallFiles.RealPath(stateDirectory ?? Path.Combine(state, "config-tools", "magnetar-installer"));
+        StateDirectory = InstallFiles.RealPath(stateDirectory ?? InstallationDiscovery.StateDirectory);
         if (InstallFiles.Contains(Target, StateDirectory)) throw new InstallError("Installation folder must not contain the setup state directory.");
         string key = OperatingSystem.IsWindows() ? Target.ToUpperInvariant() : Target;
         Receipt = Path.Combine(StateDirectory, Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(key)))[..20] + ".json");
@@ -48,16 +46,8 @@ internal sealed class Installer
         && File.Exists(Path.Combine(target, "MagnetarInterim.runtimeconfig.json"))
         && (File.Exists(Path.Combine(target, "MagnetarInterim.bin")) || File.Exists(Path.Combine(target, "MagnetarInterim.exe")));
 
-    private static bool IsLegacyLinux(string target) => File.Exists(Path.Combine(target, "MagnetarInterim"))
+    internal static bool IsLegacyLinux(string target) => File.Exists(Path.Combine(target, "MagnetarInterim"))
         && File.Exists(Path.Combine(target, "Bin/MagnetarInterim"));
-
-    private bool HasReceipt()
-    {
-        if (!File.Exists(Receipt)) return false;
-        using var document = JsonDocument.Parse(File.ReadAllBytes(Receipt));
-        return document.RootElement.TryGetProperty("target", out var target)
-            && string.Equals(target.GetString(), Target, InstallFiles.Comparison);
-    }
 
     public async Task Run(string action, CancellationToken cancellation = default)
     {
@@ -68,13 +58,14 @@ internal sealed class Installer
         InstallFiles.PrivateFolder(StateDirectory);
         using var operationLock = AcquireLock();
         cancellation.ThrowIfCancellationRequested();
-        if (IsLegacyLinux(Target)) throw new InstallError("This is an older Linux Bin/wrapper installation. Automatic migration is not supported; install the current release in a new folder and retain your existing -config and -path directories.");
-        bool portable = IsPortable(Target), known = portable || HasReceipt();
-        if (Directory.Exists(Target) && Directory.EnumerateFileSystemEntries(Target).Any() && !known)
-            throw new InstallError("This non-empty folder is not a recognized portable Magnetar installation.");
-        if (action == "install" && portable) throw new InstallError("Magnetar is already installed. Choose Update.");
-        if (action == "update" && !portable) throw new InstallError("No portable Magnetar installation was found. Choose Install for a new folder.");
-        if (action == "uninstall" && !known) throw new InstallError("No recognized Magnetar installation was found.");
+        if (IsLegacyLinux(Target)) throw new InstallError("This is an older Linux Bin/wrapper installation. This layout is no longer supported; install the current release in a new folder and retain your existing -config and -path directories.");
+        var installation = InstallationDiscovery.Create(StateDirectory).Inspect(Target);
+        if (action == "install" && !installation.CanInstall)
+            throw new InstallError(installation.CanUpdate ? "Magnetar is already installed. Choose Update." : installation.Status);
+        if (action == "update" && !installation.CanUpdate)
+            throw new InstallError("No current Magnetar installation was found. " + installation.Status);
+        if (action == "uninstall" && !installation.CanUninstall)
+            throw new InstallError("No complete Magnetar installation was found. " + installation.Status);
         ServerGuard.RequireStopped(Target);
         if (action != "uninstall" && options.CheckDependencies) report(Prerequisites.Magnetar(options.Ds64));
 

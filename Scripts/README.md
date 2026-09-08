@@ -25,3 +25,9 @@ public release per tool from the current `main` commit. Older releases and their
 verified and published; their Git tags remain. `test-release.py`
 exercises selection, visibility ordering, retries and failure recovery offline.
 See the root README for the release lifecycle and manual per-tool dispatch.
+
+`test-terminal-input.py PULSAR_EXECUTABLE` exercises setup/global navigation,
+resizing, and mouse input under a Linux PTY. `test-install-discovery.py
+PULSAR_EXECUTABLE MAGNETAR_EXECUTABLE` opens unregistered fixture installations
+from standalone tools and checks that selection is remembered without creating
+installer receipts or changing program files. Both use temporary user directories.

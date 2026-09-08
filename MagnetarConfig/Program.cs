@@ -54,6 +54,13 @@ internal static class Program
                 {
                     Application.Init();
                     TerminalTheme.Apply(ThemePreference.Load(ThemePreference.FilePath, ThemeKind.Sandstone));
+                    using var pointer = new PointerHighlight();
+                    if (!options.TargetSpecified)
+                    {
+                        string selected = InstallationPicker.Show(Install.InstallationDiscovery.Create(), options.Target);
+                        if (selected is null) return 0;
+                        options.Target = selected;
+                    }
                     Install.SetupUi.Run(options, checkUpdates: true);
                 }
                 finally { Application.Shutdown(); }
@@ -115,7 +122,23 @@ internal static class Program
             Application.Init();
             TerminalTheme.Apply(ThemePreference.Load(ThemePreference.FilePath, ThemeKind.Sandstone));
 
+            using var pointer = new PointerHighlight();
             InstanceBinding binding = cli.ToBinding();
+            if (cli.MagnetarExe == null && (!cli.HasInstance || !Install.Installer.IsPortable(InstanceLocator.InstallRoot)))
+            {
+                var catalog = Install.InstallationDiscovery.Create();
+                string selected = InstallationPicker.Show(catalog);
+                if (selected is null) return 0;
+                if (!catalog.Inspect(selected).CanOpen)
+                {
+                    var setup = new Install.InstallOptions { Target = selected, Ds64 = binding.Ds64Dir };
+                    Install.SetupUi.Run(setup);
+                    selected = setup.Target;
+                    if (!catalog.Inspect(selected).CanOpen) return 0;
+                }
+                binding.MagnetarExePath = InstanceLocator.DefaultMagnetarExe(selected);
+                if (cli.ConfigDir == null) binding.MagnetarConfigDir = InstanceLocator.DefaultMagnetarConfigDir(selected);
+            }
 
             // Windows ships two launchers (Legacy = .NET Framework 4.8, Interim =
             // .NET 10). Let the operator pick which to configure when both are
@@ -124,7 +147,7 @@ internal static class Program
             if (PlatformPaths.IsWindows && cli.MagnetarExe == null && cli.ConfigDir == null)
             {
                 System.Collections.Generic.IReadOnlyList<MagnetarLauncher> launchers =
-                    InstanceLocator.PresentWindowsLaunchers();
+                    InstanceLocator.PresentWindowsLaunchers(Path.GetDirectoryName(binding.MagnetarExePath));
                 if (launchers.Count > 0)
                 {
                     MagnetarLauncher chosen = launchers.Count == 1

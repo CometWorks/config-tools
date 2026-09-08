@@ -1,7 +1,8 @@
-using CometWorks.ConfigTools;
+#nullable enable
+using System;
 using Terminal.Gui;
 
-namespace Pulsar.Config;
+namespace CometWorks.ConfigTools;
 
 // Keep Button's keyboard, hotkey and mouse behavior; only its decoration changes.
 internal sealed class WorkspaceButton : Button

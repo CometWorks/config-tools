@@ -141,8 +141,6 @@ internal static class Files
     public static void CopyTree(
         string source,
         string target,
-        bool preserveLinks = true,
-        bool skipCaches = false,
         HashSet<string>? parents = null
     )
     {
@@ -164,16 +162,8 @@ internal static class Files
                 Directory.CreateDirectory(target);
             foreach (var entry in new DirectoryInfo(source).EnumerateFileSystemInfos())
             {
-                if (
-                    skipCaches
-                    && (
-                        entry.Name is "Hubs" or "Plugins"
-                        || entry.Name.EndsWith(".bin", StringComparison.Ordinal)
-                    )
-                )
-                    continue;
                 string dest = Path.Combine(target, entry.Name);
-                if (preserveLinks && entry.LinkTarget is { } link)
+                if (entry.LinkTarget is { } link)
                 {
                     if (entry is DirectoryInfo)
                         Directory.CreateSymbolicLink(dest, link);
@@ -181,7 +171,7 @@ internal static class Files
                         File.CreateSymbolicLink(dest, link);
                 }
                 else if (Directory.Exists(entry.FullName))
-                    CopyTree(entry.FullName, dest, preserveLinks, skipCaches, parents);
+                    CopyTree(entry.FullName, dest, parents);
                 else
                     File.Copy(entry.FullName, dest);
             }

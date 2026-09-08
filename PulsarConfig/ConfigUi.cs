@@ -38,6 +38,18 @@ internal static class ConfigUi
                 ThemePreference.Load(ThemePreference.FilePath, ThemeKind.Sandstone)
             );
             using var pointer = new PointerHighlight();
+            if (!options.TargetSpecified && options.Config is null)
+            {
+                var catalog = InstallationDiscovery.Create();
+                string? selected = InstallationPicker.Show(catalog, options.Target);
+                if (selected is null) return;
+                options.Target = selected;
+                if (!catalog.Inspect(selected).CanOpen)
+                {
+                    SetupUi.Run(options);
+                    if (!catalog.Inspect(options.Target).CanOpen) return;
+                }
+            }
             using var shell = new ConfigShell(options);
             using var shortcuts = new GlobalShortcuts(shell);
             using var startupUpdate = new StartupUpdateCheck(
@@ -212,11 +224,13 @@ internal sealed class ConfigShell : Toplevel
 
     private void OpenInstallation()
     {
+        string? selected = InstallationPicker.Show(InstallationDiscovery.Create(), options.Target, allowNew: false);
+        if (selected is null) return;
         var values = Form(
             "Open Pulsar installation",
             new[]
             {
-                ("Installation", options.Target),
+                ("Installation", selected),
                 ("Game (auto/se1/se2)", options.Game),
                 ("Config override", options.Config ?? ""),
             }
