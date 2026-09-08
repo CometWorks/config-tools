@@ -141,124 +141,71 @@ internal sealed class ConfigShell : Toplevel
 
     internal void Dashboard()
     {
-        bool Spacious() => Application.Driver.Rows >= 38;
         var window = new WorkspaceWindow("Pulsar") { ColorScheme = TerminalTheme.Window };
         window.Border.Effect3D = true;
-        window.Add(
-            new Label($"Space Engineers {(editor.Game == "se2" ? "2" : "1")}")
-            {
-                X = 3,
-                Y = 1,
-                ColorScheme = TerminalTheme.Title,
-            }
-        );
-        window.Add(
-            new Label("Choose an action")
-            {
-                X = 3,
-                Y = 2,
-                ColorScheme = TerminalTheme.Desktop,
-            }
-        );
-        var actions = new (string Label, Action Run)[]
+        window.Add(new Label($"Space Engineers {(editor.Game == "se2" ? "2" : "1")}")
+        { X = 3, Y = 1, ColorScheme = TerminalTheme.Title });
+        window.Add(new Label("Game & plugins")
+        { X = 3, Y = 3, ColorScheme = TerminalTheme.Desktop });
+        window.Add(new Label("Installation & tool")
+        { X = Pos.Percent(51), Y = 3, ColorScheme = TerminalTheme.Desktop });
+
+        var gameActions = new (string Label, Action Run)[]
         {
-            ("F5  _Start game", StartGame),
-            ("F3  _Plugins", () => Safe(Plugins)),
-            ("F4  P_rofiles", () => Safe(Profiles)),
-            ("F6  _Dev folders", () => Safe(DevFolders)),
-            ("F7  S_ources", () => Safe(Sources)),
-            ("    Setup / _update…", Setup),
+            ("_Start game", StartGame),
+            ("_Plugins", () => Safe(Plugins)),
+            ("P_rofiles", () => Safe(Profiles)),
+            ("_Dev folders", () => Safe(DevFolders)),
+            ("S_ources", () => Safe(Sources)),
         };
-        for (int i = 0; i < actions.Length; i++)
+        var toolActions = new (string Label, Action Run)[]
         {
-            int row = i;
-            var button = new WorkspaceButton(actions[i].Label)
+            ("_Manage Pulsar…", Setup),
+            ("Choose _installation…", () => Safe(OpenInstallation)),
+            ("Check for tool _updates…", () =>
             {
-                X = 3,
-                Y = Pos.Function(() => (Spacious() ? 4 : 3) + row * (Spacious() ? 3 : 2)),
-                Width = 27,
-                Height = Dim.Function(() => Spacious() ? 3 : 1),
-            };
-            button.Clicked += actions[i].Run;
-            window.Add(button);
-        }
-        void Info(string title, string value, int index)
+                if (SelfUpdateUi.Show()) Application.RequestStop();
+            }),
+            ("_Theme…", TerminalTheme.Choose),
+            ("_Quit", () => Application.RequestStop()),
+        };
+        for (int column = 0; column < 2; column++)
         {
-            window.Add(
-                new Label(title)
+            var actions = column == 0 ? gameActions : toolActions;
+            for (int row = 0; row < actions.Length; row++)
+            {
+                var button = new WorkspaceButton(actions[row].Label)
                 {
-                    X = 35,
-                    Y = Pos.Function(() => (Spacious() ? 5 : 3) + index * (Spacious() ? 4 : 3)),
-                    ColorScheme = TerminalTheme.Desktop,
-                }
-            );
-            window.Add(
-                new Label
-                {
-                    X = 35,
-                    Y = Pos.Function(() => (Spacious() ? 6 : 4) + index * (Spacious() ? 4 : 3)),
-                    Width = Dim.Fill(3),
-                    Height = 2,
-                    Text = value,
-                }
-            );
+                    X = column == 0 ? 3 : Pos.Percent(51),
+                    Y = 4 + row * 3,
+                    Width = Dim.Percent(44),
+                    Height = 3,
+                };
+                button.Clicked += actions[row].Run;
+                window.Add(button);
+            }
         }
-        Info("Installation", editor.Target, 0);
-        Info("Configuration", editor.ConfigDir, 1);
-        var launchCaption = new Label("Launch") { X = 35, ColorScheme = TerminalTheme.Desktop };
-        var launchSummary = new Label
-        {
-            X = 35,
-            Width = Dim.Fill(3),
-            Height = 3,
-        };
-        var open = new WorkspaceButton("Open _installation…")
-        {
-            X = 35,
-            Width = 30,
-            Height = 1,
-        };
-        open.Clicked += () => Safe(OpenInstallation);
-        var updates = new WorkspaceButton("Tool _updates…")
-        {
-            X = 35,
-            Width = 30,
-            Height = 1,
-        };
-        updates.Clicked += () =>
-        {
-            if (SelfUpdateUi.Show())
-                Application.RequestStop();
-        };
-        var line = new LineView
-        {
-            X = 3,
-            Y = Pos.AnchorEnd(5),
-            Width = Dim.Fill(3),
-            ColorScheme = TerminalTheme.Border,
-        };
+        window.Add(new LineView
+        { X = 3, Y = 20, Width = Dim.Fill(3), ColorScheme = TerminalTheme.Border });
+        window.Add(new Label($"Installation:   {editor.Target}")
+        { X = 3, Y = 21, Width = Dim.Fill(3), ColorScheme = TerminalTheme.Desktop });
+        window.Add(new Label($"Configuration:  {editor.ConfigDir}")
+        { X = 3, Y = Pos.Function(() => Application.Driver.Rows >= 38 ? 23 : 22),
+            Width = Dim.Fill(3), ColorScheme = TerminalTheme.Desktop });
         var launch = new Label
         {
             X = 3,
-            Y = Pos.AnchorEnd(4),
+            Y = Pos.Function(() => Application.Driver.Rows >= 38 ? 25 : 23),
             Width = Dim.Fill(3),
-            Height = 3,
-            Text = $"Steam launch options:\n{editor.LaunchOptions}",
+            Height = Dim.Function(() => Application.Driver.Rows >= 38 ? 3 : 1),
         };
-        window.Add(launchCaption, launchSummary, open, updates, line, launch);
+        window.Add(launch);
         window.LayoutStarted += _ =>
         {
-            launchCaption.Y = Spacious() ? 13 : 9;
-            launchCaption.Text = Spacious() ? "Launch" : "Steam launch options:";
-            launchSummary.Y = Spacious() ? 14 : 10;
-            string summary = Spacious()
-                ? "Through Steam · existing arguments"
-                : editor.LaunchOptions;
-            if (launchSummary.Text.ToString() != summary)
-                launchSummary.Text = summary;
-            open.Y = Spacious() ? 18 : 13;
-            updates.Y = Spacious() ? 21 : 15;
-            line.Visible = launch.Visible = Spacious();
+            string text = Application.Driver.Rows >= 38
+                ? $"Steam launch options:\n{editor.LaunchOptions}"
+                : $"Steam launch options: {editor.LaunchOptions}";
+            if (launch.Text.ToString() != text) launch.Text = text;
         };
         Show(window, home: true);
     }

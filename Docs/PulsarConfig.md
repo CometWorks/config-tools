@@ -17,7 +17,7 @@ chmod +x PulsarConfig-linux-x64.bin
 ```
 
 The main screen shows the selected installation, game, configuration directory,
-and Steam launch options. Use **Open installation** on the home screen to choose another
+and Steam launch options. Use **Choose installation** on the home screen to choose another
 installation or switch SE1/SE2. An optional config override supports `-home` and
 custom setups; point it at the directory Pulsar actually uses. The defaults are
 `<install>/Legacy` for SE1 and `<install>/Modern` for SE2. CLI equivalents:
@@ -33,7 +33,7 @@ arguments, overlay, input configuration, and environment. The tool does not
 rewrite Steam settings; ensure the displayed installation matches the launch
 options already configured in Steam.
 
-**Setup / update** on the home screen opens the installation form described below.
+**Manage Pulsar** on the home screen opens the installation form described below.
 Tab moves between fields and buttons; Enter activates the selected action.
 Installation sets the target folder; Release accepts `latest` or a tag such as
 `v2.4.1`; Game accepts `auto`, `se1`, or `se2`. Old install/settings are used for
@@ -51,7 +51,9 @@ Modern for SE2; existing Steam launch options are never rewritten.
 
 ## Navigation and terminal size
 
-The home screen and bottom shortcuts replace the top menu bar. **F1** returns
+The home screen groups game/plugin actions on the left and installation/tool
+actions on the right. Every button uses the same hover outline, with shortcut
+labels shown only in the bottom bar. Installation paths sit below both columns. **F1** returns
 home; **F2** changes the theme. Mouse movement highlights buttons, lists and bottom
 shortcuts without moving keyboard focus. Keyboard input restores keyboard
 highlighting. The bottom bar is outside Tab/arrow focus navigation, but its
@@ -66,7 +68,7 @@ continues to work. CLI commands do not resize the terminal.
 ## Windows
 
 Run `PulsarConfig-win-x64.exe` normally. Installation defaults to
-`%LOCALAPPDATA%\Pulsar`; **Open installation** selects an existing folder.
+`%LOCALAPPDATA%\Pulsar`; **Choose installation** selects an existing folder.
 Keep the configuration tool outside that folder for install/update/uninstall,
 so Windows does not lock the directory being replaced. Configuration editing
 and self-update also work when the tool is beside Pulsar.
@@ -121,7 +123,7 @@ Removing sources unregisters them; source files and profile selections remain.
 
 ## Tool updates and prerequisite checks
 
-**Tool updates** on the home screen checks for newer `pulsarconfig-vX.Y.Z` releases and can
+**Check for tool updates** on the home screen checks for newer `pulsarconfig-vX.Y.Z` releases and can
 update this executable after closing the tool. `--check-update`, `--self-update`, and
 `--tool-version` provide the headless equivalents. Tool updates are separate
 from Pulsar package updates; see the [update and recovery details](../README.md#updating-the-tools).
@@ -144,7 +146,7 @@ The default location is `%LOCALAPPDATA%\Pulsar` on Windows or
 `$XDG_DATA_HOME/Pulsar` (normally `~/.local/share/Pulsar`) on Linux. A tool placed inside an installed Pulsar directory
 defaults to that installation instead. `PULSAR_DATA_DIR` or `--target` overrides it. Updates
 keep the chosen path, profiles, custom plugins, and other user files. Existing
-portable unified Pulsar installations can also be updated. Use **Tool updates** on the home screen or `--self-update`
+portable unified Pulsar installations can also be updated. Use **Check for tool updates** on the home screen or `--self-update`
 to update the tool itself. Older unified
 packages published by linux-compat (for example 2.3.3) use Update.
 
