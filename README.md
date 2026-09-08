@@ -1,198 +1,115 @@
 # CometWorks config tools
 
-Standalone terminal tools for Pulsar and Magnetar, built with .NET 10 and
-Terminal.Gui. Both offer Sandstone (default), Graphite, Sage, Plum, and classic Turbo C / Turbo Vision themes.
+Standalone terminal tools for configuring and managing Pulsar and Magnetar.
+Both support **Windows x64 and Linux x64**, with installation management, profiles,
+plugin configuration, dependency checks and self-updates.
 
 ## Downloads
 
-Download from [Releases](https://github.com/CometWorks/config-tools/releases).
-Each tool is **one self-contained executable**, including .NET, Terminal.Gui,
-and their managed dependencies. No Python, NuGet, or separate .NET installation
-is needed to run the tools. Both use the managed console driver (standard
-bash/stty utilities on Linux); no ncurses package is needed. The quieter themes
-use RGB text with the terminal’s default background, preserving transparency.
-Turbo C retains its original terminal-defined 16-color palette.
+Choose **PulsarConfig** or **MagnetarConfig** from [Releases](https://github.com/CometWorks/config-tools/releases).
 
-| Tool | Release executable | Purpose |
+| System | Download | Start |
 | --- | --- | --- |
-| PulsarConfig | `PulsarConfig-linux-x64.bin` | Configure plugins, sources, dev folders and profiles; launch, install, update or migrate Pulsar |
-| MagnetarConfig | `MagnetarConfig-linux-x64.bin` | Install, update, configure and operate Magnetar on Linux |
-| MagnetarConfig | `MagnetarConfig-win-x64.exe` | Install, update, configure and operate Magnetar on Windows |
+| Windows | The tool’s `-win-x64.exe` | Run the executable. |
+| Linux | The tool’s `-linux-x64.bin` | Make it executable with `chmod +x filename`, then run `./filename`. |
 
-On Linux, make the downloaded file executable and run it:
-
-```sh
-chmod +x PulsarConfig-linux-x64.bin
-./PulsarConfig-linux-x64.bin
-```
-
-SHA-256 checksums and license notices accompany the executables. These bundles
-contain the **configuration tools**; Pulsar/Magnetar and the games keep their
-own runtime and platform prerequisites. Pulsar setup downloads game-launcher
-packages from **SpaceGT/Pulsar**, not from this repository.
+Each download is a single executable with its runtime and libraries included.
+No separate .NET, Python or NuGet installation is needed. Open the tool to choose
+an installation or manage an existing one; `--help` lists command-line options.
+On Windows, keep the tool outside the installation folder when installing,
+updating or uninstalling it, because Windows locks running executables.
 
 ## Updating the tools
 
-Each interactive launch checks GitHub in the background for a newer stable
-release of that specific tool. Startup stays usable; the check times out after
-eight seconds, and offline/rate-limit failures do not block the UI. If an update
-is available, a prompt offers **Later** (the default) or **Update…**. The prompt
-waits until an open menu or dialog has closed; Magnetar setup also waits for an
-active install operation to finish.
+Each launch checks for a newer stable release in the background. Choose **Update…**
+when prompted, or **Later** to continue. The check times out after eight seconds;
+network failures never block startup. You can also open **Tool updates** manually.
 
-Choose **Update…**, then **Update and close** to download and install it. Nothing
-is downloaded or replaced without that choice. **Later** keeps the current
-version; the next launch checks again. You can also use **Tools → Tool updates**
-at any time; that dialog checks automatically and reports connection failures.
+**Update and close** downloads and verifies the executable, keeps the previous
+version as a backup, and closes the tool so its helper can replace it. Close other
+windows of the same tool first, then reopen it normally. The update does not alter
+game/server files, launch arguments, profiles or the saved theme.
 
-For scripts (these do not open the startup prompt):
+Use `--check-update` to check from the command line, or `--self-update` to install
+an update. Each tool follows its own release tags, so updates to one never hide
+updates to the other. Choose the tool’s release rather than the repository-wide
+`releases/latest/download` URL. Source builds must be rebuilt.
 
-```sh
-./PulsarConfig-linux-x64.bin --check-update
-./PulsarConfig-linux-x64.bin --self-update
-./MagnetarConfig-linux-x64.bin --self-update
-# Windows: .\MagnetarConfig-win-x64.exe --self-update
-```
-
-`--tool-version` prints the installed version. These switches update the **tool**;
-`update --target ...` updates Pulsar or Magnetar. Release lookup filters each
-tool's tags, so a newer MagnetarConfig release cannot hide a PulsarConfig update.
-Choose the matching tool release on the releases page rather than using the
-repository-wide `releases/latest/download` URL.
-
-Updates require HTTPS access to GitHub and write access beside the executable.
-The helper verifies GitHub's SHA-256 digest and waits for this tool to exit before
-replacing it, including on Windows. Close other copies of the same tool first.
-Both UI and CLI updates close the tool after staging. Reopen it with your usual
-command after the helper finishes; it does not start another TUI in the background.
-The previous executable remains as `<executable>.previous`; the result is written
-to `<executable>.update.log`. Restore the previous file with the tool closed if
-needed. No game/server files, launch arguments, profiles, or theme preferences
-are changed. Source/development builds must be rebuilt rather than self-updated.
-
-## Pulsar navigation
-
-The home page has buttons for starting the game, plugins, profiles, dev folders,
-sources, setup, and choosing an installation. Its path/launch information is
-passive. Use **Tab / Shift+Tab** between controls and **Enter** to activate one;
-use arrow keys inside lists and menus. **F1** returns home, **F7** opens sources,
-**F9** activates/closes the menu bar, and the existing F2–F6/F10 shortcuts remain
-available. Lists show a selection marker; actions sit below the divider.
-Moving the mouse highlights buttons, list rows, menu headings and bottom-bar
-shortcuts without changing keyboard focus or the selected item. The bottom bar
-never takes keyboard focus; its function-key shortcuts still work. Keyboard input restores keyboard highlighting;
-click or press Enter to activate an action. The bottom shortcuts remain active
-in setup and dialogs. Navigation cancels an open edit form without saving it;
-F2 changes the theme in place. If setup is running, navigation requests cancellation
-and waits for cleanup before opening the requested screen or starting the game.
+If the installation directory is not writable, move the executable to a writable
+folder or download the replacement manually. Keep the `.previous` backup until
+the new version works; with the tool closed, it can be restored over the executable.
 
 ## Appearance
 
-Use **F2 Theme** in PulsarConfig or **Tools → Theme** in MagnetarConfig to switch
-between **Sandstone**, **Graphite**, **Sage**, **Plum**, and **Turbo C** immediately. The selection is shared by both
-tools for your user account on this machine and survives tool updates:
+Both tools default to **Sandstone**. **Graphite**, **Sage**, **Plum** and **Turbo C**
+are also available. Quiet themes use the console’s default background, including
+transparency; Turbo C retains the terminal’s classic 16-colour palette.
 
-- Linux: `$XDG_CONFIG_HOME/CometWorks/config-tools/theme`, or
-  `~/.config/CometWorks/config-tools/theme` when XDG_CONFIG_HOME is unset.
+The theme is shared by both tools for your account on this machine:
+
 - Windows: `%LOCALAPPDATA%\CometWorks\config-tools\theme`.
+- Linux: `$XDG_CONFIG_HOME/CometWorks/config-tools/theme`, defaulting to
+  `~/.config/CometWorks/config-tools/theme`.
 
-It is separate from game/server profiles and portable installation folders.
-With no saved preference, both tools default to **Sandstone**. An existing `muted`
-preference also selects Sandstone; an existing Turbo preference is preserved. Other running tool windows pick up the choice on their
-next launch. Removing this file restores the defaults.
+The setting survives updates and is separate from installation folders and
+profiles. Other open windows pick up the change on their next launch.
 
 ## Tool guides
 
-- [PulsarConfig guide](Docs/PulsarConfig.md): plugin/source/profile editing, Steam launch, backups, launch options,
-  SE1/SE2 selection, migration from LinuxCompat 1.0.x, and offline archives.
-- [MagnetarConfig manual](Docs/MagnetarConfig.md): server/world settings, mods,
-  plugins/profiles, lifecycle control, and logs.
+- [PulsarConfig guide](Docs/PulsarConfig.md): navigation, Steam launch, plugins,
+  sources, dev folders, profiles, installation and migration.
+- [MagnetarConfig manual](Docs/MagnetarConfig.md): installation, server/world
+  settings, mods, plugins, profiles, lifecycle control and logs.
 - [MagnetarConfig internals](Docs/MagnetarConfigInternals.md).
 
-Pulsar's Steam launch paths remain `Interim.bin %command%` for SE1 and
-`Modern.bin %command%` for SE2. Setup preserves extra arguments and existing
-profiles; it does not alter overlay or display-backend settings.
+The tools are released separately from the applications they manage. Their bundled
+runtime runs the configuration tool; applications and games retain their own
+prerequisites. Setup reports missing dependencies before installation.
 
 ## Build and test
 
-Building from source requires the .NET 10 SDK. Both tools use Terminal.Gui 1.19.0;
-MagnetarConfig also bundles SharpCompress to read upstream `.7z` packages; restore downloads build dependencies, and
-publishing bundles them for end users. Tests use xUnit.
+Install the .NET 10 SDK. Both projects use Terminal.Gui 1.19 and xUnit tests.
+Select a tool and runtime; the same commands apply to either project:
 
-```sh
-dotnet test MagnetarConfigTests/MagnetarConfigTests.csproj -c Release
-# Linux only:
-dotnet test PulsarConfigTests/PulsarConfigTests.csproj -c Release
-dotnet run --project PulsarConfig -- --help
-dotnet run --project MagnetarConfig -- --help
+```powershell
+$Tool = 'PulsarConfig' # or 'MagnetarConfig'
+$Rid = 'win-x64'      # or 'linux-x64'
+dotnet test "$($Tool)Tests/$($Tool)Tests.csproj" -c Release
+./Scripts/publish.ps1 -Tool $Tool -Rid $Rid
 ```
 
-Publish a standalone executable (use `win-x64` for MagnetarConfig on Windows):
+Run the publish script with PowerShell (`pwsh`) on Linux. It creates a self-contained,
+single-file executable, bundles native libraries and tests self-replacement on
+the matching host OS. Trimming is disabled to preserve reflection. No game
+assemblies or other checkout are required, and builds never deploy into live
+installations. `PULSAR_SHARED` or `MAGNETAR_SHARED` can point tests at an existing
+`Pulsar.Shared.dll` for optional serializer checks.
 
-```sh
-dotnet publish PulsarConfig/PulsarConfig.csproj -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -o dist/PulsarConfig
-dotnet publish MagnetarConfig/MagnetarConfig.csproj -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -o dist/MagnetarConfig
-```
+## Releases
 
-Native libraries are included in the bundle; trimming is disabled to preserve
-Terminal.Gui and XML serializer reflection. Runtime discovery uses
-`AppContext.BaseDirectory`, so renamed single-file executables work correctly.
-Each tool's **`Directory.Build.props`** defines its `<Version>`:
+Each project’s `Directory.Build.props` controls its version:
+[PulsarConfig](PulsarConfig/Directory.Build.props),
+[MagnetarConfig](MagnetarConfig/Directory.Build.props).
+Bump that version and merge to `main`. CI tests both operating systems and publishes
+both executables under the tool’s `X.Y.Z` tag. An unchanged version keeps its
+existing release assets. Matching tags or **Run workflow → tool** can release one
+tool separately; PRs and non-main manual runs produce development artifacts.
 
-- [`PulsarConfig/Directory.Build.props`](PulsarConfig/Directory.Build.props)
-- [`MagnetarConfig/Directory.Build.props`](MagnetarConfig/Directory.Build.props)
+CI keeps **one release per tool**. It uploads a new candidate as a draft, verifies
+asset SHA-256 digests, publishes it, and then **deletes superseded releases and
+assets**, including historical drafts. Old releases never return to draft.
+Git tags remain for source history. Separate API calls can briefly expose both
+versions during the switch.
 
-Bump the relevant version and merge to `main`. CI evaluates the project through
-MSBuild, tests/publishes the executables, and creates `pulsarconfig-vX.Y.Z` or
-`magnetarconfig-vX.Y.Z` from that configured version. It retains an already
-complete release when the version has not changed; bump the version to ship
-changed binaries. Tags cannot override the version in the project properties.
-A matching tag on the current `main` commit can still trigger an individual tool
-release, or use **Run workflow → tool** on `main` to select either tool separately.
-PRs and manual runs on other branches produce `-dev` artifacts without publishing.
-
-CI keeps **one release per tool** after a successful run. It uploads the replacement
-as a draft, verifies every asset's SHA-256 digest, and confirms the new release is
-public before **deleting all superseded releases and their assets**, including
-historical drafts. Old releases are never put back into draft. Git tags remain
-available for source history; the other tool's release is untouched.
-
-Publishing is serialized per tool, and stale builds cannot replace the current
-`main` release. A failed publication leaves the previous release available. If
-cleanup fails, the new release stays live and CI fails; rerunning the workflow
-retries cleanup without rebuilding the published version. GitHub uses separate
-API calls, so both versions can briefly be public while deletion completes.
-
-Stable versions use three numeric components (`X.Y.Z`); prereleases are excluded
-from self-update. The updater and compatibility bootstrap discover the remaining
-public release in each tool's tag stream.
-
-For the same single-file checks and update-helper smoke test locally:
-
-```sh
-pwsh Scripts/publish.ps1 -Tool PulsarConfig -Rid linux-x64
-pwsh Scripts/publish.ps1 -Tool MagnetarConfig -Rid linux-x64
-```
-
-## Magnetar integration
-
-MagnetarConfig is downloaded independently from this repository's releases.
-Magnetar's server build and bundles do not include or depend on the TUI.
-Place the executable beside a Magnetar launcher for adjacent-file discovery,
-or pass `-magnetar`, `-config`, and `-path` when keeping it elsewhere.
-
-Building and publishing config-tools never deploys into a live installation.
-No game assemblies or Magnetar checkout are required. Set `MAGNETAR_SHARED`
-for Magnetar tests or `PULSAR_SHARED` for Pulsar tests to an existing
-`Pulsar.Shared.dll` to exercise optional serializer interoperability checks.
+Publishing is serialized per tool and stale builds cannot replace the current
+`main` version. A failed publication preserves the previous release; failed
+cleanup leaves the replacement live and fails CI. Rerunning retries cleanup
+without replacing published assets. Prereleases are excluded from self-update.
 
 ## Origins
 
-Pulsar setup was introduced in [SpaceGT/Pulsar PR #54](https://github.com/SpaceGT/Pulsar/pull/54)
-and ported from the standard-library Python installer here. Its old
-[`pulsar-linux.py`](Scripts/pulsar-linux.py) URL remains a compatibility
-downloader; the release executable is the recommended entry point.
-
-MagnetarConfig, its tests, manuals, and Windows icon were extracted from
-[CometWorks/magnetar at d2e0bee](https://github.com/CometWorks/magnetar/tree/d2e0beed3f7aaac3a340e1f00e8e507e42ae265a/MagnetarConfig).
+Pulsar setup originated in [SpaceGT/Pulsar PR #54](https://github.com/SpaceGT/Pulsar/pull/54).
+The old [Python bootstrap](Scripts/pulsar-linux.py) remains a compatibility downloader.
+MagnetarConfig was extracted from
+[CometWorks/magnetar](https://github.com/CometWorks/magnetar/tree/d2e0beed3f7aaac3a340e1f00e8e507e42ae265a/MagnetarConfig).
 See [LICENSE](LICENSE) and [third-party notices](Licenses/README.md).

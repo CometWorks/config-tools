@@ -1,13 +1,13 @@
-# PulsarConfig — Linux setup
+# PulsarConfig
 
 PulsarConfig is a .NET 10 / Terminal.Gui tool for configuring, launching,
-installing, and managing native Pulsar for Space Engineers 1 and 2. Release executables bundle
+installing, and managing Pulsar on Windows and Linux for Space Engineers 1 and 2. Release executables bundle
 .NET and all managed dependencies: no Python or separate .NET install is needed
 to run setup. Steam, the chosen game, GPU drivers, and the .NET 10 runtime remain
 prerequisites for running Pulsar and the game; the tool's private runtime does
 not install a system runtime.
 
-Download `PulsarConfig-linux-x64.bin` from the
+Download `PulsarConfig-win-x64.exe` on Windows or `PulsarConfig-linux-x64.bin` on Linux from the
 [config-tools releases](https://github.com/CometWorks/config-tools/releases):
 
 ```sh
@@ -17,7 +17,7 @@ chmod +x PulsarConfig-linux-x64.bin
 ```
 
 The main screen shows the selected installation, game, configuration directory,
-and Steam launch options. Use **File → Open installation** to choose another
+and Steam launch options. Use **Open installation** on the home screen to choose another
 installation or switch SE1/SE2. An optional config override supports `-home` and
 custom setups; point it at the directory Pulsar actually uses. The defaults are
 `<install>/Legacy` for SE1 and `<install>/Modern` for SE2. CLI equivalents:
@@ -33,7 +33,7 @@ arguments, overlay, input configuration, and environment. The tool does not
 rewrite Steam settings; ensure the displayed installation matches the launch
 options already configured in Steam.
 
-**File → Setup / update / migrate** opens the installation form described below.
+**Setup / update** on the home screen opens the installation form described below.
 Tab moves between fields and buttons; Enter activates the selected action.
 Installation sets the target folder; Release accepts `latest` or a tag such as
 `v2.4.1`; Game accepts `auto`, `se1`, or `se2`. Old install/settings are used for
@@ -45,8 +45,49 @@ The unified package supplies both launchers. Game selection chooses the menu
 shortcut and displayed Steam command, not a different package. Updates preserve
 the saved choice; a new installation defaults to SE1. Use `--game se2` to select
 SE2 directly. SE2 setup rejects packages missing the Modern launcher before
-replacing any existing installation. The tool is Linux-only; Pulsar itself
-also supports Windows through its Windows packages and installer.
+replacing any existing installation. Windows packages also include the Legacy
+.NET Framework launcher. The displayed Steam command uses Interim for SE1 and
+Modern for SE2; existing Steam launch options are never rewritten.
+
+## Navigation and terminal size
+
+The home screen and bottom shortcuts replace the top menu bar. **F1** returns
+home; **F2** changes the theme. Mouse movement highlights buttons, lists and bottom
+shortcuts without moving keyboard focus. Keyboard input restores keyboard
+highlighting. The bottom bar is outside Tab/arrow focus navigation, but its
+shortcuts work from setup and dialogs too. Navigation cancels unsaved forms;
+running setup tasks cancel and finish cleanup before navigation proceeds.
+
+On startup, the TUI requests at least **128 columns × 40 rows**, preserving larger
+windows. It uses the terminal’s resize request and the native console API on
+Windows. A terminal or window manager can decline the request; manual resizing
+continues to work. CLI commands do not resize the terminal.
+
+## Windows
+
+Run `PulsarConfig-win-x64.exe` normally. Installation defaults to
+`%LOCALAPPDATA%\Pulsar`; **Open installation** selects an existing folder.
+Keep the configuration tool outside that folder for install/update/uninstall,
+so Windows does not lock the directory being replaced. Configuration editing
+and self-update also work when the tool is beside Pulsar.
+
+Setup downloads and verifies the Windows ZIP, installs all three launchers,
+preserves settings, and creates a Start Menu shortcut through Steam. Steam is
+located through its registry entry or standard installation folder. Dependency
+checks cover .NET 10, .NET Framework 4.8, Steam and the selected game. Running
+launchers and hosted game processes must be closed before setup or config edits.
+
+Steam launch options use quoted Windows paths, for example:
+
+```text
+"C:\Games\Pulsar\Interim.exe" %command%
+"C:\Games\Pulsar\Modern.exe" %command%
+```
+
+Keep additional game arguments after `%command%`. The tool starts Steam with
+`-applaunch`, retaining Steam’s configured launch options, overlay and controls.
+Use the same CLI actions below with the Windows executable and Windows paths;
+offline installation accepts `--archive C:\Downloads\Pulsar-v2.4.1-win-x64.zip`.
 
 ## Plugins, dev folders, sources, and profiles
 
@@ -61,7 +102,7 @@ also supports Windows through its Windows packages and installer.
   The profile ID is the folder name, matching Pulsar; the manifest filename is
   stored as `File` in `Sources/sources.xml`. Renaming the folder updates matching
   dev IDs in saved profiles as well as Current.
-- **Plugins → Sources** adds/edits/removes remote hubs, individual plugin
+- **F7 Sources** adds/edits/removes remote hubs, individual plugin
   repositories, local hubs, and Workshop sources. Remote entries expose branch,
   manifest file (plugin repos), Enabled, and Trusted. Editing remote source
   locations clears their cached hash/check time for Pulsar's next refresh.
@@ -80,33 +121,34 @@ Removing sources unregisters them; source files and profile selections remain.
 
 ## Tool updates and prerequisite checks
 
-**Tools → Tool updates** checks for newer `pulsarconfig-vX.Y.Z` releases and can
+**Tool updates** on the home screen checks for newer `pulsarconfig-vX.Y.Z` releases and can
 update this executable after closing the tool. `--check-update`, `--self-update`, and
 `--tool-version` provide the headless equivalents. Tool updates are separate
 from Pulsar package updates; see the [update and recovery details](../README.md#updating-the-tools).
 
 Setup's **Check prerequisites** button and `PulsarConfig check --game se1` report
-.NET 10, Steam/game discovery, Vulkan/Opus, display libraries and optional audio.
+.NET 10 and Steam/game discovery, plus .NET Framework on Windows or
+Vulkan/Opus, display libraries and optional audio on Linux.
 Install, update and migration also run these checks before downloading. They are
 advisory: Steam containers can supply libraries absent on the host, and installation
 can precede runtime setup. File/path validation, writable staging, checksums and
 running-process checks remain mandatory. Uninstall does not require game runtimes.
 
-The check accepts either Wayland or X11 and respects an existing
+On Linux, the check accepts either Wayland or X11 and respects an existing
 `SDL_VIDEODRIVER`; it does not choose a display backend or modify input settings.
 The bundled tool runtime does not satisfy Pulsar's separate .NET 10 requirement.
 
 ## Install, update, and uninstall
 
-The default location is `$XDG_DATA_HOME/Pulsar`, normally
-`~/.local/share/Pulsar`. A tool placed inside an installed Pulsar directory
+The default location is `%LOCALAPPDATA%\Pulsar` on Windows or
+`$XDG_DATA_HOME/Pulsar` (normally `~/.local/share/Pulsar`) on Linux. A tool placed inside an installed Pulsar directory
 defaults to that installation instead. `PULSAR_DATA_DIR` or `--target` overrides it. Updates
 keep the chosen path, profiles, custom plugins, and other user files. Existing
-portable unified Pulsar installations can also be updated. Use **Tools → Tool updates** or `--self-update`
+portable unified Pulsar installations can also be updated. Use **Tool updates** on the home screen or `--self-update`
 to update the tool itself. Older unified
 packages published by linux-compat (for example 2.3.3) use Update.
 
-The tool downloads the Linux x64 archive from **SpaceGT/Pulsar**, verifies
+The tool downloads the matching Windows x64 ZIP or Linux x64 tar.gz from **SpaceGT/Pulsar**, verifies
 GitHub's SHA-256 digest, rejects unsafe archive entries, and prepares a complete
 staging directory before switching installations. A failure during the switch
 restores the previous program, receipt, and desktop entry. Setup refuses to

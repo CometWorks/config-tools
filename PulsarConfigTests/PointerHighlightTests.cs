@@ -31,7 +31,7 @@ public class PointerHighlightTests
                     navigated = true;
                 }),
             ]);
-            owner.Add(new WorkspaceMenuBar([]), bar);
+            owner.Add(bar);
             using var shortcuts = new GlobalShortcuts(owner);
             var outer = Application.Begin(owner);
             try
@@ -118,15 +118,11 @@ public class PointerHighlightTests
                 Height = 4,
             };
             list.SetSource(new[] { "  One", "  Two" });
-            var menu = new WorkspaceMenuBar([
-                new MenuBarItem("_File", [new MenuItem("_Open", "", () => { })]),
-                new MenuBarItem("_Game", [new MenuItem("_Start", "", () => { })]),
-            ]);
             var status = new WorkspaceStatusBar([
                 new StatusItem(Key.F1, "~F1~ Home", () => { }),
                 new StatusItem(Key.F10, "~F10~ Quit", () => { }, () => false),
             ]);
-            top.Add(menu, first, second, list, status);
+            top.Add(first, second, list, status);
             int firstClicks = 0,
                 secondClicks = 0;
             first.Clicked += () => firstClicks++;
@@ -180,25 +176,8 @@ public class PointerHighlightTests
                 Application.RootMouseEvent(mouse);
                 Assert.False(PointerHighlight.IsOver(second));
 
-                // Closed navigation bars paint hover without opening menus or taking focus.
+                // Bottom navigation paints hover without taking keyboard focus.
                 var hoverColor = turbo ? TerminalTheme.Menu.Focus : TerminalTheme.HomeAction.Focus;
-                Application.RootMouseEvent(
-                    new MouseEvent
-                    {
-                        X = 2,
-                        Y = 0,
-                        View = menu,
-                        Flags = MouseFlags.ReportMousePosition,
-                    }
-                );
-                menu.Redraw(menu.Bounds);
-                Assert.Equal((int)hoverColor, driver.Contents[0, 2, 1]);
-                Assert.False(menu.IsMenuOpen);
-                Assert.True(first.HasFocus);
-                Application.RootKeyEvent(key);
-                menu.Redraw(menu.Bounds);
-                Assert.NotEqual((int)hoverColor, driver.Contents[0, 2, 1]);
-
                 int bottom = driver.Rows - 1;
                 Application.RootMouseEvent(
                     new MouseEvent

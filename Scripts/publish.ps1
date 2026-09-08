@@ -5,7 +5,6 @@ param(
     [string]$ExpectedVersion
 )
 $ErrorActionPreference = 'Stop'
-if ($Tool -eq 'PulsarConfig' -and $Rid -ne 'linux-x64') { throw 'PulsarConfig supports Linux x64' }
 $Version = (dotnet msbuild "$Tool/$Tool.csproj" -nologo -p:Configuration=Release -p:RuntimeIdentifier=$Rid -getProperty:Version | Out-String).Trim()
 if ($LASTEXITCODE -ne 0 -or $Version -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid project version: $Version" }
 if ($ExpectedVersion -and $Version -ne $ExpectedVersion) { throw "Project version changed between planning and publishing: $Version != $ExpectedVersion" }
@@ -31,9 +30,11 @@ if (($IsWindows -and $Rid -eq 'win-x64') -or ($IsLinux -and $Rid -eq 'linux-x64'
         & $dest --tool-version
         if ($LASTEXITCODE -ne 0) { throw "Standalone version failed: $Tool" }
         if ($Tool -eq 'PulsarConfig') {
-            python Scripts/test-bootstrap.py
-            if ($LASTEXITCODE -ne 0) { throw 'Bootstrap smoke test failed' }
+            & $dest check --game se1 --target (Join-Path ([System.IO.Path]::GetTempPath()) 'pulsar-prerequisite-check')
+            if ($LASTEXITCODE -ne 0) { throw 'Native prerequisite check failed' }
             if ($IsLinux) {
+                python Scripts/test-bootstrap.py
+                if ($LASTEXITCODE -ne 0) { throw 'Bootstrap smoke test failed' }
                 python Scripts/test-terminal-input.py $dest
                 if ($LASTEXITCODE -ne 0) { throw 'Terminal input stress test failed' }
             }

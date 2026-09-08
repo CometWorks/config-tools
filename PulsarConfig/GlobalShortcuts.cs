@@ -53,8 +53,6 @@ internal sealed class GlobalShortcuts : IDisposable
         // Changing theme keeps the active editor and its unsaved fields open.
         if (item.Shortcut == Terminal.Gui.Key.F2)
         {
-            if (owner.MenuBar.IsMenuOpen)
-                owner.MenuBar.ProcessKey(new KeyEvent(Terminal.Gui.Key.Esc, new KeyModifiers()));
             Application.MainLoop.Invoke(item.Action);
             return;
         }
@@ -71,8 +69,6 @@ internal sealed class GlobalShortcuts : IDisposable
             Application.RequestStop();
             return;
         }
-        if (owner.MenuBar.IsMenuOpen)
-            owner.MenuBar.ProcessKey(new KeyEvent(Terminal.Gui.Key.Esc, new KeyModifiers()));
         var action = pending;
         pending = null;
         Application.MainLoop.Invoke(action);

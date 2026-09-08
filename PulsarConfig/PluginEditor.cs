@@ -41,7 +41,7 @@ internal sealed class PluginEditor
     public string ProfilesDir => Path.Combine(ConfigDir, "Profiles");
     public string CurrentPath => Path.Combine(ProfilesDir, "Current.xml");
     public string LaunchOptions =>
-        Files.Quote(Path.Combine(Target, Game == "se2" ? "Modern.bin" : "Interim.bin"))
+        Files.Quote(Path.Combine(Target, Installer.Launcher(Game)))
         + " %command%";
 
     public PluginEditor(Options options)
@@ -68,10 +68,10 @@ internal sealed class PluginEditor
 
     public ProcessStartInfo LaunchCommand()
     {
-        if (!File.Exists(Path.Combine(Target, Game == "se2" ? "Modern.bin" : "Interim.bin")))
+        if (!File.Exists(Path.Combine(Target, Installer.Launcher(Game))))
             throw new SetupError("Install Pulsar or choose its installation folder first.");
         // Let Steam apply its existing launch options, environment, overlay and controller setup.
-        var start = new ProcessStartInfo("steam") { UseShellExecute = false };
+        var start = new ProcessStartInfo(CometWorks.ConfigTools.Prerequisites.SteamExecutable) { UseShellExecute = false };
         start.ArgumentList.Add("-applaunch");
         start.ArgumentList.Add(Game == "se2" ? "1133870" : "244850");
         return start;

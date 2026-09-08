@@ -6,7 +6,6 @@ using Xunit;
 
 namespace PulsarConfigTests;
 
-[SupportedOSPlatform("linux")]
 public sealed class PluginEditorTests : IDisposable
 {
     private readonly string root = Path.Combine(
@@ -103,7 +102,8 @@ public sealed class PluginEditorTests : IDisposable
         string original =
             "<Profile><Name>Current</Name><GitHub><GitHubPluginConfig><Id>plugin</Id><SelectedVersion>pinned</SelectedVersion><Future>keep</Future></GitHubPluginConfig></GitHub><DevFolder/><Local/><Mods><unsignedLong>123456</unsignedLong></Mods><Unknown>preserve</Unknown></Profile>";
         File.WriteAllText(Editor.CurrentPath, original);
-        File.SetUnixFileMode(Editor.CurrentPath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        if (OperatingSystem.IsLinux())
+            File.SetUnixFileMode(Editor.CurrentPath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
         Editor.SaveProfile("With mods");
         var plugin = Editor.Plugins().Single(p => p.Id == "plugin");
         Editor.TogglePlugin(plugin);
@@ -115,10 +115,8 @@ public sealed class PluginEditorTests : IDisposable
         );
         Assert.Equal("123456", current.Element("Mods")!.Elements().Single().Value);
         Assert.Equal("preserve", current.Element("Unknown")!.Value);
-        Assert.Equal(
-            UnixFileMode.UserRead | UnixFileMode.UserWrite,
-            File.GetUnixFileMode(Editor.CurrentPath)
-        );
+        if (OperatingSystem.IsLinux())
+            Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(Editor.CurrentPath));
         Assert.Equal(original, File.ReadAllText(Editor.CurrentPath + ".bak"));
         Editor.SaveProfile("Renamed", "With mods");
         Assert.False(File.Exists(Editor.ProfilesDir + "/With mods.xml"));
@@ -164,7 +162,8 @@ public sealed class PluginEditorTests : IDisposable
         Assert.Throws<SetupError>(() => Editor.PutSource(source, source.Data));
     }
 
-    [Fact]
+    [LinuxFact]
+    [SupportedOSPlatform("linux")]
     public void Failed_profile_write_rolls_back_dev_registration()
     {
         Editor.PutSource(Editor.SourcesList().Single(), Editor.SourcesList().Single().Data);
@@ -192,10 +191,10 @@ public sealed class PluginEditorTests : IDisposable
     public void SE2_uses_Modern_and_Steam_without_changing_launch_options()
     {
         var editor = new PluginEditor(new Options { Target = Options.Target, Game = "se2" });
-        Assert.EndsWith("/Modern", editor.ConfigDir);
+        Assert.Equal("Modern", Path.GetFileName(editor.ConfigDir));
         Assert.Equal("StarCpt/PluginHub-SE2", editor.SourcesList().Single().Key);
         var launch = editor.LaunchCommand();
-        Assert.Equal("steam", launch.FileName);
+        Assert.Equal(CometWorks.ConfigTools.Prerequisites.SteamExecutable, launch.FileName);
         Assert.Equal(new[] { "-applaunch", "1133870" }, launch.ArgumentList);
         Assert.Equal(new[] { "-applaunch", "244850" }, Editor.LaunchCommand().ArgumentList);
         Assert.False(File.Exists(editor.SourcesPath));
@@ -322,7 +321,8 @@ public sealed class PluginEditorTests : IDisposable
         }
     }
 
-    [Fact]
+    [LinuxFact]
+    [SupportedOSPlatform("linux")]
     public void Editing_refuses_a_running_Pulsar_process()
     {
         string exe = Options.Target + "/Interim.bin";
@@ -362,6 +362,7 @@ public sealed class PluginEditorTests : IDisposable
         {
             CometWorks.ConfigTools.TerminalTheme.Apply();
             using var shell = new ConfigShell(Options);
+            Assert.Null(shell.MenuBar);
             var state = Terminal.Gui.Application.Begin(shell);
             foreach (
                 Action navigate in new Action[]

@@ -10,6 +10,25 @@ internal static class ConfigUi
 {
     public static void Run(Options options)
     {
+        // Xterm window operation, understood by Konsole and other supporting terminals.
+        // Request once; the terminal can decline it and users can still resize afterwards.
+        if (Console.WindowWidth < 128 || Console.WindowHeight < 40)
+        {
+            int width = Math.Max(128, Console.WindowWidth), height = Math.Max(40, Console.WindowHeight);
+            Console.Write($"\x1b[8;{height};{width}t");
+            Console.Out.Flush();
+            if (OperatingSystem.IsWindows())
+            {
+                try
+                {
+                    width = Math.Min(width, Console.LargestWindowWidth);
+                    height = Math.Min(height, Console.LargestWindowHeight);
+                    Console.SetBufferSize(Math.Max(Console.BufferWidth, width), Math.Max(Console.BufferHeight, height));
+                    Console.SetWindowSize(width, height);
+                }
+                catch (Exception error) when (error is IOException or ArgumentOutOfRangeException or PlatformNotSupportedException) { }
+            }
+        }
         using var palette = PaletteConsole.Attach();
         Application.UseSystemConsole = true;
         Application.Init();
@@ -54,7 +73,7 @@ internal sealed class ConfigShell : Toplevel
         location = new Label("")
         {
             X = 1,
-            Y = 1,
+            Y = 0,
             Width = Dim.Fill(1),
         };
         status = new Label("Changes are saved with .bak backups and take effect next launch.")
@@ -64,54 +83,6 @@ internal sealed class ConfigShell : Toplevel
             Width = Dim.Fill(1),
         };
         Add(
-            new WorkspaceMenuBar(
-                new[]
-                {
-                    new MenuBarItem(
-                        "_File",
-                        new[]
-                        {
-                            new MenuItem("_Open installation…", "", () => Safe(OpenInstallation)),
-                            new MenuItem("_Setup / update / migrate…", "", Setup),
-                            new MenuItem("_Quit", "", () => Application.RequestStop()),
-                        }
-                    ),
-                    new MenuBarItem(
-                        "_Game",
-                        new[]
-                        {
-                            new MenuItem("_Home", "", Dashboard),
-                            new MenuItem("_Start through Steam", "", StartGame),
-                        }
-                    ),
-                    new MenuBarItem(
-                        "_Plugins",
-                        new[]
-                        {
-                            new MenuItem("_Available / enabled", "", () => Safe(Plugins)),
-                            new MenuItem("_Dev folders", "", () => Safe(DevFolders)),
-                            new MenuItem("_Sources", "", () => Safe(Sources)),
-                            new MenuItem("_Profiles", "", () => Safe(Profiles)),
-                        }
-                    ),
-                    new MenuBarItem(
-                        "_Tools",
-                        new[]
-                        {
-                            new MenuItem("_Theme…", "", TerminalTheme.Choose),
-                            new MenuItem(
-                                "Tool _updates…",
-                                "",
-                                () =>
-                                {
-                                    if (SelfUpdateUi.Show())
-                                        Application.RequestStop();
-                                }
-                            ),
-                        }
-                    ),
-                }
-            ),
             location,
             status,
             new WorkspaceStatusBar(
@@ -152,15 +123,15 @@ internal sealed class ConfigShell : Toplevel
         }
         panel = view;
         view.X = Pos.Center();
-        view.Y = 3;
+        view.Y = 2;
         view.Width = Dim.Function(() => Math.Min(132, Application.Driver.Cols - 4));
-        view.Height = Dim.Function(() => Math.Min(34, Application.Driver.Rows - 7));
+        view.Height = Dim.Function(() => Math.Min(34, Application.Driver.Rows - 6));
         if (home)
         {
             view.X = Pos.Center();
-            view.Y = 3;
+            view.Y = 2;
             view.Width = Dim.Function(() => Math.Min(112, Application.Driver.Cols - 4));
-            view.Height = Dim.Function(() => Math.Min(31, Application.Driver.Rows - 7));
+            view.Height = Dim.Function(() => Math.Min(31, Application.Driver.Rows - 6));
         }
         Add(view);
         location.Text =
@@ -248,6 +219,17 @@ internal sealed class ConfigShell : Toplevel
             Height = 1,
         };
         open.Clicked += () => Safe(OpenInstallation);
+        var updates = new WorkspaceButton("Tool _updates…")
+        {
+            X = 35,
+            Width = 30,
+            Height = 1,
+        };
+        updates.Clicked += () =>
+        {
+            if (SelfUpdateUi.Show())
+                Application.RequestStop();
+        };
         var line = new LineView
         {
             X = 3,
@@ -263,7 +245,7 @@ internal sealed class ConfigShell : Toplevel
             Height = 3,
             Text = $"Steam launch options:\n{editor.LaunchOptions}",
         };
-        window.Add(launchCaption, launchSummary, open, line, launch);
+        window.Add(launchCaption, launchSummary, open, updates, line, launch);
         window.LayoutStarted += _ =>
         {
             launchCaption.Y = Spacious() ? 13 : 9;
@@ -275,6 +257,7 @@ internal sealed class ConfigShell : Toplevel
             if (launchSummary.Text.ToString() != summary)
                 launchSummary.Text = summary;
             open.Y = Spacious() ? 18 : 13;
+            updates.Y = Spacious() ? 21 : 15;
             line.Visible = launch.Visible = Spacious();
         };
         Show(window, home: true);
@@ -315,7 +298,7 @@ internal sealed class ConfigShell : Toplevel
     private void Setup() =>
         Safe(() =>
         {
-            MenuBar.Visible = status.Visible = false;
+            status.Visible = false;
             try
             {
                 SetupUi.Run(options);
@@ -324,7 +307,7 @@ internal sealed class ConfigShell : Toplevel
             }
             finally
             {
-                MenuBar.Visible = status.Visible = true;
+                status.Visible = true;
                 SetNeedsDisplay();
             }
         });

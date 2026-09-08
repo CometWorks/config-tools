@@ -14,16 +14,28 @@ internal static class Files
     public static string Xdg(string variable, string fallback) =>
         FullPath(Environment.GetEnvironmentVariable(variable) ?? Path.Combine(Home, fallback));
 
-    public static string DataHome => Xdg("XDG_DATA_HOME", ".local/share");
+    internal static readonly StringComparison Comparison = OperatingSystem.IsWindows()
+        ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+    internal static readonly StringComparer Comparer = OperatingSystem.IsWindows()
+        ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+    public static string DataHome => OperatingSystem.IsWindows()
+        ? Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)
+        : Xdg("XDG_DATA_HOME", ".local/share");
+    public static string ConfigHome => OperatingSystem.IsWindows()
+        ? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)
+        : Xdg("XDG_CONFIG_HOME", ".config");
+    public static string StateHome => OperatingSystem.IsWindows()
+        ? Path.Combine(DataHome, "CometWorks", "config-tools")
+        : Xdg("XDG_STATE_HOME", ".local/state");
     public static string OldConfig =>
         Environment.GetEnvironmentVariable("PULSAR_DIR") is { Length: > 0 } custom
             ? FullPath(custom)
             : new[]
             {
-                Path.Combine(Xdg("XDG_CONFIG_HOME", ".config"), "Pulsar"),
+                Path.Combine(ConfigHome, "Pulsar"),
                 Path.Combine(Home, ".local/config/Pulsar"),
             }.FirstOrDefault(Directory.Exists)
-                ?? Path.Combine(Xdg("XDG_CONFIG_HOME", ".config"), "Pulsar");
+                ?? Path.Combine(ConfigHome, "Pulsar");
 
     public static string FullPath(string value)
     {
@@ -61,9 +73,9 @@ internal static class Files
             throw new SetupError("Choose the real installation folder, not a symbolic link.");
         string path = RealPath(value);
         if (
-            new[] { "/", Home, DataHome, Xdg("XDG_CONFIG_HOME", ".config"), OldConfig, "/tmp" }
+            new[] { Path.GetPathRoot(path)!, Home, DataHome, ConfigHome, OldConfig, Path.GetTempPath() }
                 .Select(RealPath)
-                .Contains(path)
+                .Contains(path, Comparer)
         )
             throw new SetupError(
                 "Choose a dedicated Pulsar folder, not a home/configuration root."
@@ -84,6 +96,7 @@ internal static class Files
         Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
 
     public static string Quote(string path) =>
+        OperatingSystem.IsWindows() ? "\"" + path + "\"" :
         System.Text.RegularExpressions.Regex.IsMatch(path, @"^[a-zA-Z0-9_@%+=:,./-]+$")
             ? path
             : "'" + path.Replace("'", "'\"'\"'") + "'";
@@ -91,7 +104,7 @@ internal static class Files
     public static bool Contains(string parent, string child) =>
         child.StartsWith(
             Path.TrimEndingDirectorySeparator(parent) + Path.DirectorySeparatorChar,
-            StringComparison.Ordinal
+            Comparison
         );
 
     public static void Remove(string path)
@@ -133,7 +146,7 @@ internal static class Files
         HashSet<string>? parents = null
     )
     {
-        parents ??= new(StringComparer.Ordinal);
+        parents ??= new(Comparer);
         string real = RealPath(source);
         if (!parents.Add(real))
             throw new SetupError($"Configuration contains a directory link cycle: {source}");
@@ -183,8 +196,12 @@ internal static class Files
 
     public static void RequireStopped(params string[] roots)
     {
-        if (!OperatingSystem.IsLinux())
+        if (OperatingSystem.IsWindows())
+        {
+            if (!roots.Any(Directory.Exists)) return;
+            WindowsProcessGuard.RequireStopped(roots);
             return;
+        }
         foreach (string proc in Directory.EnumerateDirectories("/proc"))
         {
             if (!int.TryParse(Path.GetFileName(proc), out int pid) || pid == Environment.ProcessId)

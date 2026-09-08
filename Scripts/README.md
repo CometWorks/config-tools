@@ -1,4 +1,4 @@
-# Pulsar Linux setup
+# Build, release and compatibility scripts
 
 The installer has moved to the C# project [`PulsarConfig`](../PulsarConfig).
 Use its self-contained executable from [config-tools releases](https://github.com/CometWorks/config-tools/releases).
@@ -21,7 +21,7 @@ adds the development suffix. `-ExpectedVersion` only asserts CI's planned versio
 and cannot override it.
 
 `release.py` plans the platform matrix from project versions and publishes one
-public release per tool from the current `main` commit. Older releases become
-drafts only after replacement assets are uploaded and verified. `test-release.py`
+public release per tool from the current `main` commit. Older releases and their assets are deleted only after the replacement is
+verified and published; their Git tags remain. `test-release.py`
 exercises selection, visibility ordering, retries and failure recovery offline.
 See the root README for the release lifecycle and manual per-tool dispatch.

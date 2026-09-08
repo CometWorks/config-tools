@@ -89,20 +89,32 @@ internal static class Prerequisites
                     }
                 );
 
+    internal static string[] SteamRoots()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(@"Software\Valve\Steam");
+            return new[] { key?.GetValue("SteamPath") as string ?? "",
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Steam") }
+                .Where(p => !string.IsNullOrWhiteSpace(p)).ToArray();
+        }
+        string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        return new[] { Path.Combine(home, ".steam/steam"), Path.Combine(home, ".local/share/Steam"),
+            Path.Combine(home, ".var/app/com.valvesoftware.Steam/.local/share/Steam") };
+    }
+
+    internal static string SteamExecutable => OperatingSystem.IsWindows()
+        ? SteamRoots().Select(root => Path.Combine(root, "steam.exe")).FirstOrDefault(File.Exists) ?? "steam.exe"
+        : "steam";
+
     public static string Pulsar(string game = "se1")
     {
         var lines = new List<string>
         {
-            "Pulsar launch prerequisites (advisory; Steam's runtime may supply missing host libraries):",
+            "Pulsar launch prerequisites (advisory):",
             Runtime(),
         };
-        string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var roots = new[]
-        {
-            Path.Combine(home, ".steam/steam"),
-            Path.Combine(home, ".local/share/Steam"),
-            Path.Combine(home, ".var/app/com.valvesoftware.Steam/.local/share/Steam"),
-        };
+        var roots = SteamRoots();
         var libraries = new HashSet<string>(roots.Where(Directory.Exists));
         foreach (string root in roots)
         {
@@ -124,13 +136,13 @@ internal static class Prerequisites
         lines.Add(
             libraries.Count > 0
                 ? "OK: Steam installation detected."
-                : "CHECK: Install Steam and sign in as this user (including Flatpak Steam)."
+                : "CHECK: Install Steam and sign in as this user."
         );
         string app = game == "se2" ? "1133870" : "244850";
         lines.Add(
             libraries.Any(p => File.Exists(Path.Combine(p, "steamapps", $"appmanifest_{app}.acf")))
                 ? $"OK: Steam app {app} manifest detected; verify game files in Steam if launch fails."
-                : $"CHECK: Install Steam app {app} and select Proton to download its Windows game files."
+                : $"CHECK: Install Steam app {app}." + (OperatingSystem.IsLinux() ? " Select Proton to download its Windows game files." : "")
         );
         if (OperatingSystem.IsLinux())
         {
@@ -159,7 +171,14 @@ internal static class Prerequisites
                     : "OPTIONAL: PipeWire, PulseAudio or ALSA libraries for sound."
             );
         }
-        lines.Add(
+        if (OperatingSystem.IsWindows())
+        {
+            using var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full");
+            lines.Add(key?.GetValue("Release") is int release && release >= 528040
+                ? "OK: .NET Framework 4.8 or newer detected."
+                : "MISSING: .NET Framework 4.8 for the Windows interface, plugin compiler and Legacy launcher.");
+        }
+        else lines.Add(
             "Bundled SDL3/DXVK/FFmpeg/OpenAL do not need separate installation. GPU access and the active Steam container must be checked at launch."
         );
         return string.Join(Environment.NewLine, lines);

@@ -12,24 +12,28 @@ internal sealed class Installer
 {
     internal const string Repo = "SpaceGT/Pulsar";
     internal static readonly HashSet<string> ProgramFiles = new(
-        new[] { "Libraries", "LICENSE", "README.md", "pulsar-linux.py" }.Concat(
+        new[] { "Libraries", "LICENSE", "README.md", "pulsar-linux.py", "Legacy.exe", "Legacy.exe.config" }.Concat(
             new[] { "Interim", "Modern" }.SelectMany(name =>
-                new[] { ".bin", ".dll", ".deps.json", ".runtimeconfig.json" }.Select(suffix =>
+                new[] { ".bin", ".exe", ".dll", ".deps.json", ".runtimeconfig.json" }.Select(suffix =>
                     name + suffix
                 )
             )
-        )
+        ), Files.Comparer
     );
+    internal static string Launcher(string game) =>
+        (game == "se2" ? "Modern" : "Interim") + (OperatingSystem.IsWindows() ? ".exe" : ".bin");
     internal static readonly string[] Required =
     [
-        "Interim.bin",
+        Launcher("se1"),
         "Interim.dll",
         "Interim.runtimeconfig.json",
         "Libraries/Interim/Pulsar.Shared.dll",
+        .. OperatingSystem.IsWindows() ? new[] { "Legacy.exe", "Legacy.exe.config",
+            "Libraries/Legacy/Pulsar.Shared.dll", "Libraries/Compiler/Compiler.exe", "Libraries/Interface/Interface.exe" } : [],
     ];
     internal static readonly string[] Se2Required =
     [
-        "Modern.bin",
+        Launcher("se2"),
         "Modern.dll",
         "Modern.runtimeconfig.json",
         "Libraries/Modern/Pulsar.Shared.dll",
@@ -55,26 +59,33 @@ internal sealed class Installer
         File.Exists(Path.Combine(path, "Interim"))
         && File.Exists(Path.Combine(path, "Bin/Interim"));
 
-    public Installer(Options options, Action<string> report)
+    public Installer(Options options, Action<string> report, string? stateRoot = null, string? desktopPath = null)
     {
         this.options = options;
         this.report = report;
         Target = Files.InstallPath(options.Target);
-        StateDir = Path.Combine(Files.Xdg("XDG_STATE_HOME", ".local/state"), "pulsar-installer");
-        Receipt = Path.Combine(StateDir, Files.HashText(Target)[..20] + ".json");
-        Desktop = Path.Combine(Files.DataHome, "applications/pulsar.desktop");
+        StateDir = stateRoot ?? Path.Combine(Files.StateHome, "pulsar-installer");
+        Receipt = Path.Combine(StateDir, Files.HashText(OperatingSystem.IsWindows() ? Target.ToUpperInvariant() : Target)[..20] + ".json");
+        Desktop = desktopPath ?? (OperatingSystem.IsWindows()
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "Pulsar.url")
+            : Path.Combine(Files.DataHome, "applications/pulsar.desktop"));
         Game = options.Game;
     }
 
     internal string LaunchOptions =>
-        Files.Quote(Path.Combine(Target, Game == "se2" ? "Modern.bin" : "Interim.bin"))
+        Files.Quote(Path.Combine(Target, Launcher(Game)))
         + " %command%";
     private string GameName => Game == "se2" ? "Space Engineers 2" : "Space Engineers 1";
-    internal string DesktopContents =>
-        $"[Desktop Entry]\nType=Application\nName=Pulsar — {GameName}\nComment={GameName} with Pulsar\nExec=steam -applaunch {(Game == "se2" ? "1133870" : "244850")}\nIcon=applications-games\nTerminal=false\nCategories=Game;\nX-Pulsar-Install-Path={Target}\n";
+    internal string DesktopContents => OperatingSystem.IsWindows()
+        ? $"[InternetShortcut]\r\nURL=steam://rungameid/{(Game == "se2" ? "1133870" : "244850")}\r\nX-Pulsar-Install-Path={Target}\r\n"
+        : $"[Desktop Entry]\nType=Application\nName=Pulsar — {GameName}\nComment={GameName} with Pulsar\nExec=steam -applaunch {(Game == "se2" ? "1133870" : "244850")}\nIcon=applications-games\nTerminal=false\nCategories=Game;\nX-Pulsar-Install-Path={Target}\n";
 
     private void Validate(string action)
     {
+        if (OperatingSystem.IsWindows() &&
+            (string.Equals(Target, Files.FullPath(AppContext.BaseDirectory), Files.Comparison)
+             || Files.Contains(Target, Files.FullPath(AppContext.BaseDirectory))))
+            throw new SetupError("Run PulsarConfig from outside the installation folder before changing it on Windows.");
         Files.RequireStopped(Target);
         bool known = Modern(Target) || Legacy(Target) || File.Exists(Receipt);
         if (
@@ -125,14 +136,16 @@ internal sealed class Installer
             .Where(a =>
                 Regex.IsMatch(
                     a.GetProperty("name").GetString()!,
-                    @"\Apulsar-.*-linux-x64\.tar\.gz\z",
+                    OperatingSystem.IsWindows()
+                        ? @"\Apulsar-.*-win-x64\.zip\z"
+                        : @"\Apulsar-.*-linux-x64\.tar\.gz\z",
                     RegexOptions.IgnoreCase
                 )
             )
             .ToArray();
         if (assets.Length != 1)
             throw new SetupError(
-                "This release has no unique Linux x64 package. Try another release tag."
+                $"This release has no unique {(OperatingSystem.IsWindows() ? "Windows" : "Linux")} x64 package. Try another release tag."
             );
         string digest = assets[0].TryGetProperty("digest", out var hash)
             ? hash.GetString() ?? ""
@@ -189,6 +202,13 @@ internal sealed class Installer
         string digest = Files.Hash(archive);
         if (expected is not null && !digest.Equals(expected, StringComparison.OrdinalIgnoreCase))
             throw new SetupError("Package checksum mismatch. Installation was not changed.");
+        if (OperatingSystem.IsWindows())
+        {
+            UnpackZip(archive, destination, token);
+            if (!Modern(destination))
+                throw new SetupError("Not a Pulsar Windows package: required launcher files are missing.");
+            return digest;
+        }
         using var input = File.OpenRead(archive);
         using var gzip = new GZipStream(input, CompressionMode.Decompress);
         using var tar = new TarReader(gzip);
@@ -247,6 +267,48 @@ internal sealed class Installer
                 "Not a unified Pulsar Linux package: required launcher files are missing."
             );
         return digest;
+    }
+
+    internal static void UnpackZip(string archive, string destination, CancellationToken token = default)
+    {
+        using var zip = ZipFile.OpenRead(archive);
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        long total = 0;
+        foreach (var entry in zip.Entries)
+        {
+            token.ThrowIfCancellationRequested();
+            string name = entry.FullName.Replace('\\', '/');
+            bool directory = name.EndsWith('/');
+            string[] parts = name.TrimEnd('/').Split('/');
+            if (parts.Any(part => string.IsNullOrEmpty(part) || part is "." or ".."
+                    || part.Any(c => char.IsControl(c) || "<>:\"|?*".Contains(c))
+                    || part.EndsWith('.') || part.EndsWith(' ')
+                    || Regex.IsMatch(part, @"\A(?:CON|PRN|AUX|NUL|COM[1-9¹²³]|LPT[1-9¹²³])(?:\.|$)", RegexOptions.IgnoreCase))
+                || !ProgramFiles.Contains(parts[0])
+                || ((entry.ExternalAttributes >> 16) & 0xF000) == 0xA000
+                || (entry.ExternalAttributes & (int)FileAttributes.ReparsePoint) != 0
+                || !names.Add(string.Join('/', parts)))
+                throw new SetupError($"Unsafe or duplicate ZIP entry: {entry.FullName}");
+            string path = Path.Combine(destination, Path.Combine(parts));
+            if (directory)
+            {
+                Directory.CreateDirectory(path);
+                continue;
+            }
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            using var input = entry.Open();
+            using var output = new FileStream(path, FileMode.CreateNew);
+            byte[] buffer = new byte[81920];
+            int count;
+            while ((count = input.Read(buffer)) != 0)
+            {
+                token.ThrowIfCancellationRequested();
+                total = checked(total + count);
+                if (total > 2L * 1024 * 1024 * 1024)
+                    throw new SetupError("Package exceeds the 2 GiB extraction limit.");
+                output.Write(buffer, 0, count);
+            }
+        }
     }
 
     internal static void CopySettings(string source, string destination)
@@ -392,7 +454,8 @@ internal sealed class Installer
                     oldShortcut
                     || Encoding
                         .UTF8.GetString(oldDesktop)
-                        .Contains($"X-Pulsar-Install-Path={Target}\n", StringComparison.Ordinal)
+                        .Replace("\r\n", "\n")
+                        .Contains($"X-Pulsar-Install-Path={Target}\n", Files.Comparison)
                 )
             )
                 File.Delete(Desktop);
@@ -537,10 +600,10 @@ internal sealed class Installer
                 }
                 else
                 {
-                    archive = Path.Combine(work, "release.tar.gz");
+                    archive = Path.Combine(work, OperatingSystem.IsWindows() ? "release.zip" : "release.tar.gz");
                     (version, expected) = await Download(version, archive, token);
                 }
-                report("Verifying and unpacking the Linux release…");
+                report("Verifying and unpacking the release…");
                 checksum = Unpack(archive, package, expected, token);
                 if (
                     Game == "se2"

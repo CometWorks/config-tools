@@ -17,7 +17,7 @@ spec.loader.exec_module(release)
 class ReleaseTests(unittest.TestCase):
     def test_project_versions_control_plan_and_tags_cannot_override(self):
         versions = {'PulsarConfig': '1.2.3', 'MagnetarConfig': '4.5.6'}
-        self.assertEqual(len(release.plan('refs/heads/main', 'all', versions)['matrix']['include']), 3)
+        self.assertEqual(len(release.plan('refs/heads/main', 'all', versions)['matrix']['include']), 4)
         for tool in release.TOOLS:
             result = release.plan(f'refs/tags/{tool.lower()}-v{versions[tool]}', 'all', versions)
             self.assertEqual(result['releases']['include'], [{'tool': tool, 'version': versions[tool]}])
@@ -93,7 +93,7 @@ class ReleaseTests(unittest.TestCase):
     def test_upload_verified_before_switch_and_stale_builds_do_not_promote(self):
         for outcome in ('success', 'bad-checksum', 'stale'):
             with self.subTest(outcome=outcome), tempfile.TemporaryDirectory() as folder:
-                paths = [Path(folder) / name for name in ('PulsarConfig-linux-x64.bin', 'SHA256SUMS.txt')]
+                paths = [Path(folder) / name for name in ('PulsarConfig-linux-x64.bin', 'PulsarConfig-win-x64.exe', 'SHA256SUMS.txt')]
                 for path in paths:
                     path.write_bytes(b'fixture')
                 releases, _, _, _, _ = self.lifecycle()

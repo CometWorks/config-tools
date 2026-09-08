@@ -7,7 +7,7 @@ internal static class SetupUi
 {
     public static void Run(Options options)
     {
-        using var top = new WorkspaceDialog("Pulsar · Linux setup")
+        using var top = new WorkspaceDialog("Pulsar · Setup")
         {
             Width = Dim.Function(() => Math.Min(132, Application.Driver.Cols - 2)),
             Height = Dim.Function(() => Math.Min(36, Application.Driver.Rows - 2)),

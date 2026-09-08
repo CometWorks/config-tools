@@ -110,7 +110,7 @@ internal static class Program
                     --source DIR     Old native installation (migration; default: target)
                     --settings DIR   Old configuration (default: XDG_CONFIG_HOME/Pulsar)
                     --version TAG    Pulsar release tag, or latest
-                    --archive FILE   Use a local unified Linux .tar.gz
+                    --archive FILE   Use a local release .zip or .tar.gz
                     --sha256 HEX     Expected checksum for a local archive
                     --yes            Confirm an explicitly named CLI action
                     --check-update   Check for a newer PulsarConfig release
@@ -121,9 +121,9 @@ internal static class Program
                 );
                 return 0;
             }
-            if (!OperatingSystem.IsLinux() || RuntimeInformation.OSArchitecture != Architecture.X64)
-                throw new SetupError("Pulsar setup currently supports native Linux x64 installs.");
-            if (geteuid() == 0)
+            if (!(OperatingSystem.IsLinux() || OperatingSystem.IsWindows()) || RuntimeInformation.OSArchitecture != Architecture.X64)
+                throw new SetupError("Pulsar supports Linux x64 and Windows x64.");
+            if (OperatingSystem.IsLinux() && geteuid() == 0)
                 throw new SetupError("Run as your normal Steam user, without sudo.");
             if (options.Action == "check")
             {

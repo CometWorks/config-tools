@@ -33,8 +33,7 @@ def plan(ref, selected, versions):
             raise ValueError('Release tag must match the selected project build version')
     rows = [{'tool': tool, 'version': versions[tool], 'os': os_name, 'rid': rid}
             for tool in tools for os_name, rid in
-            ([('ubuntu-latest', 'linux-x64')] if tool == 'PulsarConfig' else
-             [('ubuntu-latest', 'linux-x64'), ('windows-latest', 'win-x64')])]
+            [('ubuntu-latest', 'linux-x64'), ('windows-latest', 'win-x64')]]
     return {'matrix': {'include': rows},
             'releases': {'include': [{'tool': tool, 'version': versions[tool]} for tool in tools]}}
 
@@ -90,7 +89,7 @@ def publish(tool, expected, directory):
         return
     tag = f'{tool.lower()}-v{expected}'
     files = sorted(Path(directory).glob('*'))
-    assets = [f'{tool}-linux-x64.bin'] + ([f'{tool}-win-x64.exe'] if tool == 'MagnetarConfig' else [])
+    assets = [f'{tool}-linux-x64.bin', f'{tool}-win-x64.exe']
     if not files or any(not (Path(directory) / name).is_file() for name in assets + ['SHA256SUMS.txt']):
         raise ValueError('Required release artifacts are missing')
     if any(p.suffix in ('.exe', '.bin') and p.name not in assets for p in files):

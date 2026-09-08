@@ -83,7 +83,7 @@ public sealed class InstallerTests : IDisposable
     private void UserFile(string relative, string content) =>
         Files.Write(Path.Combine(options.Target, relative), Encoding.UTF8.GetBytes(content));
 
-    [Fact]
+    [LinuxFact]
     public async Task Lifecycle_preserves_user_data_and_backups()
     {
         await installer.Run("install");
@@ -119,7 +119,7 @@ public sealed class InstallerTests : IDisposable
         );
     }
 
-    [Fact]
+    [LinuxFact]
     public async Task Se2_selection_and_legacy_receipts_are_preserved()
     {
         options.Game = "se2";
@@ -139,7 +139,7 @@ public sealed class InstallerTests : IDisposable
         Assert.Equal("se1", oldReceipt.Game);
     }
 
-    [Fact]
+    [LinuxFact]
     public async Task Missing_se2_files_do_not_change_install()
     {
         await installer.Run("install");
@@ -149,7 +149,7 @@ public sealed class InstallerTests : IDisposable
         Assert.Equal("first", File.ReadAllText(options.Target + "/Interim.bin"));
     }
 
-    [Fact]
+    [LinuxFact]
     public async Task Invalid_checksum_and_missing_archive_preserve_install()
     {
         await installer.Run("install");
@@ -160,7 +160,7 @@ public sealed class InstallerTests : IDisposable
         Assert.Equal("first", File.ReadAllText(options.Target + "/Interim.bin"));
     }
 
-    [Theory]
+    [LinuxTheory]
     [InlineData("../escaped", false)]
     [InlineData("/absolute", false)]
     [InlineData("Legacy/Profiles/Current.xml", false)]
@@ -186,7 +186,7 @@ public sealed class InstallerTests : IDisposable
         Assert.Equal("first", File.ReadAllText(options.Target + "/Interim.bin"));
     }
 
-    [Fact]
+    [LinuxFact]
     public async Task Unrelated_directory_and_root_are_rejected()
     {
         Directory.CreateDirectory(options.Target);
@@ -197,7 +197,7 @@ public sealed class InstallerTests : IDisposable
         Assert.Throws<SetupError>(() => Files.InstallPath(home));
     }
 
-    [Fact]
+    [LinuxFact]
     public async Task Desktop_failure_restores_install_receipt_and_shortcut()
     {
         await installer.Run("install");
@@ -216,7 +216,7 @@ public sealed class InstallerTests : IDisposable
         Assert.Equal(desktop, File.ReadAllText(installer.Desktop));
     }
 
-    [Fact]
+    [LinuxFact]
     public async Task Other_installation_shortcut_is_not_removed()
     {
         await installer.Run("install");
@@ -228,7 +228,7 @@ public sealed class InstallerTests : IDisposable
         Assert.True(File.Exists(installer.Desktop));
     }
 
-    [Fact]
+    [LinuxFact]
     public async Task Update_preserves_private_directory_and_file_permissions()
     {
         await installer.Run("install");
@@ -250,7 +250,7 @@ public sealed class InstallerTests : IDisposable
         );
     }
 
-    [Fact]
+    [LinuxFact]
     public async Task Concurrent_operations_are_rejected()
     {
         using var operationLock = Files.Lock(installer.StateDir);
@@ -258,7 +258,7 @@ public sealed class InstallerTests : IDisposable
         Assert.False(Directory.Exists(options.Target));
     }
 
-    [Fact]
+    [LinuxFact]
     public async Task Running_installation_is_detected_by_executable_path()
     {
         await installer.Run("install");
@@ -353,7 +353,7 @@ public sealed class InstallerTests : IDisposable
         Assert.Equal("123456", profile.Descendants("unsignedLong").Single().Value);
     }
 
-    [Fact]
+    [LinuxFact]
     public async Task Migration_moves_profiles_and_dev_manifests_not_caches()
     {
         string state = LegacySettings();
@@ -368,7 +368,7 @@ public sealed class InstallerTests : IDisposable
         Assert.False(Directory.Exists(options.Target + "/Bin"));
     }
 
-    [Fact]
+    [LinuxFact]
     public void Symlinked_config_trees_do_not_modify_originals()
     {
         string state = LegacySettings(),
@@ -383,7 +383,7 @@ public sealed class InstallerTests : IDisposable
         Assert.Null(new DirectoryInfo(copy + "/Profiles").LinkTarget);
     }
 
-    [Fact]
+    [LinuxFact]
     public async Task Migration_conflict_preserves_both_installations()
     {
         string state = LegacySettings(),
@@ -399,7 +399,7 @@ public sealed class InstallerTests : IDisposable
         Assert.True(Installer.Legacy(old));
     }
 
-    [Fact]
+    [LinuxFact]
     public async Task Cancellation_does_not_switch_installation()
     {
         await installer.Run("install");
@@ -411,7 +411,7 @@ public sealed class InstallerTests : IDisposable
         Assert.Equal("first", File.ReadAllText(options.Target + "/Interim.bin"));
     }
 
-    [Fact]
+    [LinuxFact]
     public async Task Actual_1_0_16_install_migrate_update_uninstall()
     {
         string? bundle = Environment.GetEnvironmentVariable("PULSAR_TEST_LEGACY_BUNDLE");
