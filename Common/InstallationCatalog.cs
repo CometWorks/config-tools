@@ -114,6 +114,12 @@ internal sealed class InstallationCatalog
         catch (Exception error) when (IsPathError(error) || error is JsonException) { return []; }
     }
 
+    public Installation? SingleSavedInstallation()
+    {
+        var saved = InspectCandidates(History()).Where(item => item.CanOpen).Take(2).ToArray();
+        return saved.Length == 1 ? saved[0] : null;
+    }
+
     public IReadOnlyList<Installation> Discover(string? selected = null)
     {
         var candidates = new List<string>();

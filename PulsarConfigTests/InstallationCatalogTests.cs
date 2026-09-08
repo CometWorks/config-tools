@@ -59,6 +59,30 @@ public sealed class InstallationCatalogTests : IDisposable
     }
 
     [Fact]
+    public void Startup_uses_one_valid_saved_location_without_selecting_unconfigured_discoveries()
+    {
+        string first = Install("first"), second = Install("second");
+        var catalog = Catalog(first, second);
+        Receipt(first, true);
+        Assert.Null(catalog.SingleSavedInstallation());
+
+        catalog.Remember(first);
+        Assert.Equal(first, Catalog(second).SingleSavedInstallation()?.Path);
+        byte[] history = File.ReadAllBytes(catalog.HistoryPath);
+        Assert.Equal(first, catalog.SingleSavedInstallation()?.Path);
+        Assert.Equal(history, File.ReadAllBytes(catalog.HistoryPath));
+
+        catalog.Remember(second);
+        Assert.Null(catalog.SingleSavedInstallation());
+        File.Delete(Path.Combine(second, "launcher"));
+        Assert.Equal(first, catalog.SingleSavedInstallation()?.Path);
+        Directory.Delete(first, true);
+        Assert.Null(catalog.SingleSavedInstallation());
+        File.WriteAllText(catalog.HistoryPath, "not json");
+        Assert.Null(catalog.SingleSavedInstallation());
+    }
+
+    [Fact]
     public void Receipts_are_hints_not_proof_and_uninstall_history_is_not_installed()
     {
         string existing = Install("external");

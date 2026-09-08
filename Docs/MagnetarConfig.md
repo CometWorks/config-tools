@@ -437,7 +437,10 @@ work, see the
 
 ## Installing and updating Magnetar
 
-Startup without explicit instance/launcher paths offers an installation picker.
+Startup without explicit instance/launcher paths opens a single valid saved
+installation directly. With no valid saved location or several saved locations,
+it offers the installation picker. Installation management remains available
+from the File menu; explicit `--setup` still opens setup.
 It checks the tool directory, working directory, default setup location, installer
 receipts, and remembered selections. Current unpacked releases are recognized
 without a receipt. **Browse** finds arbitrary installs; **Search folder** scans

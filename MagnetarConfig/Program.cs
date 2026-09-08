@@ -127,7 +127,7 @@ internal static class Program
             if (cli.MagnetarExe == null && (!cli.HasInstance || !Install.Installer.IsPortable(InstanceLocator.InstallRoot)))
             {
                 var catalog = Install.InstallationDiscovery.Create();
-                string selected = InstallationPicker.Show(catalog);
+                string selected = catalog.SingleSavedInstallation()?.Path ?? InstallationPicker.Show(catalog);
                 if (selected is null) return 0;
                 if (!catalog.Inspect(selected).CanOpen)
                 {

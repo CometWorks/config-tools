@@ -198,8 +198,10 @@ The normal unified Pulsar and Steam launch paths remain responsible for those.
 
 ## Existing installations
 
-On startup without an explicit `--target` or `--config`, choose an installation
-from the picker. It checks the tool directory, working directory, data-home
+On startup without an explicit `--target` or `--config`, a single valid saved
+installation opens directly. Otherwise, choose an installation from the picker.
+Use **Choose installation** or **Manage Pulsar** from the main screen to open
+installation management explicitly. It checks the tool directory, working directory, data-home
 location, installer receipts, and remembered selections. Manually unpacked
 current releases are recognized by their program files; no receipt is required.
 `PULSAR_DATA_DIR` and explicit command-line paths retain precedence.

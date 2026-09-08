@@ -41,7 +41,8 @@ internal static class ConfigUi
             if (!options.TargetSpecified && options.Config is null)
             {
                 var catalog = InstallationDiscovery.Create();
-                string? selected = InstallationPicker.Show(catalog, options.Target);
+                string? selected = catalog.SingleSavedInstallation()?.Path
+                    ?? InstallationPicker.Show(catalog, options.Target);
                 if (selected is null) return;
                 options.Target = selected;
                 if (!catalog.Inspect(selected).CanOpen)

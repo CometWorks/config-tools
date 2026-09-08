@@ -33,7 +33,7 @@ Discovery must not create receipts, download packages, execute launchers, or cha
 
 Provide an **Installations** picker with path, layout/status, and available variants; keep details for the selected item visible. Include **Refresh**, **Browse for installation…**, **Search folder…**, and **Install new…**.
 
-- With no explicit target, show discovered choices before falling back to new-install setup. With none found, provide a useful empty state. With several found, require selection rather than silently choosing the first.
+- With no explicit target and exactly one valid saved installation, open it directly. Otherwise, show discovered choices before falling back to new-install setup. With none found, provide a useful empty state. With several valid saved installations, require selection rather than silently choosing the first. Automatically discovered folders do not count as configured locations.
 - Explicit CLI paths retain precedence. Headless commands remain deterministic and do not select a target from a discovery scan.
 - Choosing an existing folder makes it manageable without reinstalling it or requiring a receipt. Remember successful selections in small per-user tool state outside the installation, following the existing theme preference storage pattern. Forgetting a saved entry only removes history.
 - Use the picker from Pulsar's **Choose installation** and **Manage Pulsar**, and Magnetar's startup/open-instance and install-management entry points.
