@@ -1,5 +1,7 @@
 using CometWorks.ConfigTools;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.IO;
 using System.Reflection;
 using Magnetar.Config.Io;
@@ -272,6 +274,38 @@ public class UiSmokeTests : IDisposable
     }
 
     // --- helpers ---
+
+    [Fact]
+    public void Multiline_edit_is_saved_while_the_editor_keeps_focus()
+    {
+        InitHeadless();
+        var shell = new AppShell(NewBinding());
+        Application.RunState rs = Application.Begin(shell);
+        try
+        {
+            shell.ShowServerSettings();
+            var form = (OptionFormView)typeof(AppShell).GetField("content", Private).GetValue(shell);
+            var filter = (TextField)typeof(OptionFormView).GetField("filter", Private).GetValue(form);
+            filter.Text = "Server Description";
+            Pump(ref rs, 2);
+
+            TextView editor = Descendants(form).OfType<TextView>().Single();
+            editor.SetFocus();
+            foreach (char c in "Edited")
+                editor.ProcessKey(new KeyEvent((Key)c, new KeyModifiers()));
+            form.FlushPendingSave();
+
+            string cfg = File.ReadAllText(Path.Combine(dir, "SpaceEngineers-Dedicated.cfg"));
+            Assert.Contains("<ServerDescription>Edited</ServerDescription>", cfg);
+        }
+        finally
+        {
+            Application.End(rs);
+        }
+    }
+
+    private static IEnumerable<View> Descendants(View view) =>
+        view.Subviews.SelectMany(v => Descendants(v).Prepend(v));
 
     private InstanceBinding NewBinding() => new()
     {
