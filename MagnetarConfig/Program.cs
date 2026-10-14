@@ -29,6 +29,8 @@ internal static class Program
             return File.Exists(path) ? Assembly.LoadFrom(path) : null;
         };
 
+        if (args.Length >= 3 && args[0] == Process.DetachedLauncher.HelperArg)
+            return Process.DetachedLauncher.RunHelper(args[1..]);
         if (SelfUpdate.Handle(args).GetAwaiter().GetResult() is int updateResult) return updateResult;
         if (args.Length > 0 && args[0] is "install" or "update" or "uninstall" or "check" or "--setup")
             return RunSetup(args);

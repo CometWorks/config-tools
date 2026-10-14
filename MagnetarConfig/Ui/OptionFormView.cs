@@ -309,8 +309,10 @@ internal sealed class OptionFormView : Window, IAutoSaveContent
             {
                 // AllowsTab=false lets Tab/Shift-Tab move focus between fields
                 // instead of inserting a tab character inside the editor.
+                // Commit on every edit like the single-line fields, so the ~1s
+                // auto-save picks it up even if focus never leaves the editor.
                 var tv = new TextView { X = x, Y = 0, Width = Dim.Fill(1), Height = MultilineRows, Text = document.Get(def), AllowsTab = false };
-                tv.Leave += _ =>
+                tv.ContentsChanged += _ =>
                 {
                     document.Set(def, tv.Text.ToString().TrimEnd('\n'));
                     session.NotifyChanged();

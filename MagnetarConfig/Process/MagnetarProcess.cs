@@ -48,7 +48,8 @@ internal sealed class MagnetarProcess
     /// <summary>
     /// Spawns Magnetar daemonized, then waits (bounded) for the pid file to
     /// appear and verify. stdout/stderr are discarded so the child cannot corrupt
-    /// the TUI or block on a full pipe.
+    /// the TUI or block on a full pipe. On Windows <see cref="DetachedLauncher"/>
+    /// starts it, so closing the terminal does not take the server down with it.
     /// </summary>
     public OpResult Start(LaunchSpec spec, TimeSpan? readyTimeout = null)
     {
@@ -69,22 +70,10 @@ internal sealed class MagnetarProcess
         // Remove any stale pid file so the appearance wait is unambiguous.
         TryDeleteStalePid(current);
 
-        var psi = new ProcessStartInfo
-        {
-            FileName = exe,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true,
-            WorkingDirectory = Path.GetDirectoryName(exe),
-        };
-        foreach (string arg in spec.BuildArgs())
-            psi.ArgumentList.Add(arg);
-
         SysProcess proc;
         try
         {
-            proc = SysProcess.Start(psi);
+            proc = PlatformPaths.IsWindows ? StartDetached(exe, spec) : StartDrained(exe, spec);
         }
         catch (Exception e)
         {
@@ -93,9 +82,6 @@ internal sealed class MagnetarProcess
 
         if (proc == null)
             return OpResult.Fail("Failed to launch Magnetar (no process handle).");
-
-        // Discard the child's console output so it never reaches our terminal.
-        DrainAsync(proc);
 
         TimeSpan timeout = readyTimeout ?? TimeSpan.FromSeconds(60);
         var sw = Stopwatch.StartNew();
@@ -199,6 +185,36 @@ internal sealed class MagnetarProcess
         catch
         {
         }
+    }
+
+    private static SysProcess StartDetached(string exe, LaunchSpec spec)
+    {
+        SysProcess proc = SysProcess.GetProcessById(
+            DetachedLauncher.Start(exe, spec.BuildArgs(), Path.GetDirectoryName(exe)));
+        // Open the handle now so the exit code stays readable if it exits early.
+        _ = proc.SafeHandle;
+        return proc;
+    }
+
+    private static SysProcess StartDrained(string exe, LaunchSpec spec)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = exe,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+            WorkingDirectory = Path.GetDirectoryName(exe),
+        };
+        foreach (string arg in spec.BuildArgs())
+            psi.ArgumentList.Add(arg);
+
+        SysProcess proc = SysProcess.Start(psi);
+        // Discard the child's console output so it never reaches our terminal.
+        if (proc != null)
+            DrainAsync(proc);
+        return proc;
     }
 
     private static void DrainAsync(SysProcess proc)

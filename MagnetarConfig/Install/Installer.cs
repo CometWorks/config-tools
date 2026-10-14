@@ -111,6 +111,15 @@ internal sealed class Installer
                     if (Directory.Exists(source)) Directory.Move(source, dest);
                     else File.Move(source, dest);
                 }
+                // Magnetar creates its config folder on first launch. Create it now so the
+                // tool can open the instance with -config before the server has ever run.
+                Directory.CreateDirectory(Path.Combine(stage, "Magnetar"));
+            }
+            else
+            {
+                string libraries = Path.Combine(stage, "Libraries");
+                if (Directory.Exists(libraries) && !Directory.EnumerateFileSystemEntries(libraries).Any())
+                    Directory.Delete(libraries);
             }
             byte[] receipt = JsonSerializer.SerializeToUtf8Bytes(new { target = Target, installed = action != "uninstall", version, sha256 = checksum });
             cancellation.ThrowIfCancellationRequested();
