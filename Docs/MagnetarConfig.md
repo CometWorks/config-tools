@@ -486,6 +486,9 @@ Setup validates release paths and checksums, stages changes beside the target,
 keeps a backup, and rolls back if the switch fails. It only removes/replaces
 server-owned launcher and library files. Instances, worlds, profiles, local
 plugins, unrelated files, and the separate configuration tool are retained.
+Install and update create a missing `Magnetar` config folder, so the tool can
+open the new instance before the server's first start. Uninstall also removes
+`Libraries` when nothing else is left in it.
 Servers using the target must be stopped. On Windows, run the standalone setup
 tool from outside the target because the running executable locks its directory.
 

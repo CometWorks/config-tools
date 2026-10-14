@@ -94,6 +94,7 @@ public sealed class InstallerTests : IDisposable
     public async Task Lifecycle_preserves_instances_worlds_tools_and_unrelated_libraries()
     {
         await installer.Run("install");
+        Assert.True(Directory.Exists(Path.Combine(options.Target, "Magnetar")));
         Assert.False(File.Exists(Path.Combine(options.Target, "MagnetarConfig.exe")));
         Assert.False(Directory.Exists(Path.Combine(options.Target, "Libraries/MagnetarConfig")));
         string[] userFiles = ["Magnetar/Profiles/Current.xml", "MagnetarLegacy/config.xml", "MagnetarInterim/config.xml",
@@ -110,9 +111,19 @@ public sealed class InstallerTests : IDisposable
         await installer.Run("uninstall");
         Assert.False(File.Exists(Path.Combine(options.Target, "MagnetarInterim.dll")));
         Assert.False(Directory.Exists(Path.Combine(options.Target, "Libraries/Compiler")));
+        Assert.True(Directory.Exists(Path.Combine(options.Target, "Libraries/Custom")));
         foreach (string file in userFiles) Assert.Equal("private user data", File.ReadAllText(Path.Combine(options.Target, file)));
         await installer.Run("install");
         foreach (string file in userFiles) Assert.Equal("private user data", File.ReadAllText(Path.Combine(options.Target, file)));
+    }
+
+    [Fact]
+    public async Task Uninstall_removes_the_emptied_libraries_folder_and_keeps_the_config_folder()
+    {
+        await installer.Run("install");
+        await installer.Run("uninstall");
+        Assert.False(Directory.Exists(Path.Combine(options.Target, "Libraries")));
+        Assert.True(Directory.Exists(Path.Combine(options.Target, "Magnetar")));
     }
 
     [Fact]
